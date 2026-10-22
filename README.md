@@ -64,6 +64,13 @@ python3 tools/csp_hash.py --check FocusDeck.html  # check only
 
 If you forget, the app shows “FocusDeck couldn’t start” rather than failing silently. Then run the self-check.
 
+After a visual change, retake the screenshots in `docs/screenshots/`. This needs Node and Google Chrome, and it only ever shows demo data:
+
+```bash
+cd tools && npm install && cd ..   # once
+node tools/screenshots.mjs
+```
+
 Versioning rules and the history of every release are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Design
