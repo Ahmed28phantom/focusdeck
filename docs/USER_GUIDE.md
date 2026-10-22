@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.4 · October 2026
+For FocusDeck v5.5 · October 2026
 
 ## Getting started
 
@@ -8,8 +8,10 @@ FocusDeck is a Pomodoro timer, day planner and focus log in one HTML file. Doubl
 
 - **Your data lives in the browser, not the file.** It is saved automatically, under the key `focusdeck5`, every time something changes. The same browser on the same computer always finds it again.
 - **A different browser, a private window or another computer starts empty.** Move data between them with Settings → Backup → Export, then Restore.
+- **In Chrome, every copy of the file sees the same data,** wherever it's saved and whatever it's called. Other browsers may tie the data to where the file is, so keep it in one place.
 - **All v5.x files share the same data.** You can swap a v5 file for a newer one and nothing is lost. To check which version is open, look at the last line of the Settings tab.
 - **First open after v3 or v4:** your old tasks and history are imported automatically, and a message says how many.
+- **Open in more than one browser tab? They stay in sync.** A change in one tab shows up in the others straight away (since v5.5).
 - **FocusDeck reopens on the tab you used last,** unless a session is running, in which case it opens on Today.
 - **Watch the timer from other tabs.** The tab icon is a small dial: a colored wedge shows the time left, indigo for focus, teal for a break, grey when paused.
 
@@ -64,7 +66,7 @@ The Plan section on the Today tab holds three lists: **Today** (what you mean to
 
 Type in the *New task* row and press Return. Two shortcuts work inside the title:
 
-- `#tag` adds a tag, e.g. `#stats`. Tags group tasks in Insights → Estimates vs reality.
+- `#tag` adds a tag, e.g. `#stats`. Tags group your time in Insights → Time by tag and Estimates vs reality.
 - `~number` sets an estimate in focus sessions, e.g. `~6`. Estimates power the progress bars, the capacity line and the estimate insights.
 
 So `Stats past paper #stats ~6` makes a task called “Stats past paper”, tagged stats, estimated at 6 sessions. Press **N** anywhere on the Today tab to jump to the box. The Later list has its own box inside its section.
@@ -77,9 +79,9 @@ So `Stats past paper #stats ~6` makes a task called “Stats past paper”, tagg
 | Start focusing on a task right away | The **play button** on its row. If the timer is idle it starts a focus session at once. |
 | Switch task mid-session | Press the play button on another task. The whole session then counts toward the new one. |
 | Mark done | The circle on the left. Undo is offered; tick it again to reopen the task. |
-| Edit title, tag, estimate, or move between Today and Later | Click the task's title. **Delete Task** is at the bottom of that sheet. |
+| Edit title, tag, estimate or position, or move between Today and Later | Click the task's title. **Delete Task** is at the bottom of that sheet. |
 | Move between Today and Later quickly | The **Later** / **Today** button on the row |
-| Reorder | Drag a row up or down, or drag it from Later into Today (mouse only) |
+| Reorder | Drag a row up or down, or from Later into Today, with a mouse. From the keyboard, Tab to a task and press **Alt ↑ / ↓** (⌥ on a Mac). On a phone, open the task and pick its **Position**. |
 
 The selected task has an indigo bar on its left and the word *Selected*. Each row shows sessions done against the estimate (for example 3.5 / 6) and a small bar that turns orange once you go over the estimate.
 
@@ -129,13 +131,14 @@ Each row shows start–end time, task, minutes, how it ended (Full, Ended early,
 
 ## Insights
 
-Insights turns your session log into four answers. It needs at least 3 credited focus sessions to appear. Switch between the last **7, 30 or 90 days** at the top; the estimate panel always uses all time.
+Insights turns your session log into five answers. It needs at least 3 credited focus sessions to appear. Switch between the last **7, 30 or 90 days** at the top; the estimate panel always uses all time.
 
 | Panel | What it tells you | How to use it |
 | --- | --- | --- |
 | Headline figures | Total focus, average per active day, % of sessions run to the end, your typical rating | The per-day average is the honest number for your daily target |
 | Focus per day | Hours per day as bars, with your daily target as a dashed line | Spot slumps and which days of the week you protect |
 | When you focus | A weekday × hour grid, darker = more focus, plus your busiest 2-hour window | Book your hardest work into that window |
+| Time by tag | Focus time per tag, biggest first; sessions with no tagged task count as untagged | Check your hours go where you meant them to |
 | Estimates vs reality | For finished tasks with an estimate: actual ÷ estimate (median), per tag and for recent tasks | 1.5× means tasks take half again as long as you think; pad new estimates by that much |
 | Session quality | Distractions per session, deep vs scattered comparison, count of each rating | If scattered sessions carry far more distractions, remove the usual culprit |
 
@@ -162,7 +165,7 @@ Light and dark appearance follow your system setting; since v5.2 there is no the
 
 ## Your data
 
-Everything sits in this browser only. Clearing the browser's site data erases it, so export a backup every week or two and keep it somewhere safe, such as Google Drive.
+Everything sits in this browser only. Clearing the browser's site data erases it, so export a backup every week or two and keep it somewhere safe, such as Google Drive. If two weeks go by without one, FocusDeck reminds you when you open it (at most once a week), with a **Back Up** button. Settings shows when you last exported.
 
 | Action | Where | What happens |
 | --- | --- | --- |
@@ -171,7 +174,8 @@ Everything sits in this browser only. Clearing the browser's site data erases it
 | Sessions as CSV → Export | Settings → Your data | Downloads every session as a spreadsheet: day, start, end, task, tag, minutes, outcome, credit, rating, distraction count, note |
 | Import from the old FocusDeck | Settings → Your data | Adds v3/v4 data from this browser to what you already have. Warns before importing twice. |
 | Paste its data | Settings → Your data | The same import, for old data from another browser (instructions are under the link) |
-| Erase… | Settings → Your data | Deletes everything after asking. You can undo for a few seconds. |
+| Protect from clean-up | Settings → Your data | Asks the browser not to clear FocusDeck's data when the disk runs low on space. The browser decides, and Chrome may say no for a file opened from disk. It doesn't stop you clearing site data yourself, so keep backing up. |
+| Erase… | Settings → Your data | Deletes everything after asking. You can undo straight after. |
 
 The CSV opens in Excel and loads straight into pandas with `pd.read_csv()`, which makes it a good dataset for your own analysis. Text that starts with = + - or @ gets a leading ' so Excel never runs it as a formula.
 
@@ -187,6 +191,7 @@ Shortcuts work on the Today tab when you are not typing in a box. Press **?** to
 | N | Jump to the new-task box |
 | D | Note a distraction (during focus) |
 | 1 / 2 / 3 | Rate the session that just ended |
+| Alt ↑ / ↓ (⌥ on Mac) | Move the task you've tabbed to up or down its list |
 | Ctrl Z (⌘Z on Mac) | Undo the last change, on any tab |
 | Shift Ctrl Z (⇧⌘Z) | Redo |
 | ? | Show all shortcuts |
@@ -213,14 +218,14 @@ If FocusDeck shows **“FocusDeck couldn’t start”**, either the browser is o
 
 | Problem | Fix |
 | --- | --- |
-| My sessions are gone | You are probably in a different browser, a private window, or opened the file from a new folder. Go back to the original setup, or Restore a backup. |
+| My sessions are gone | You are probably in a different browser or a private window, or (outside Chrome) opened a copy of the file saved somewhere else. Go back to the original setup, or Restore a backup. |
 | No sound at the end of a session | Click the page once after opening or reloading it; browsers block sound until you interact. Check Settings → Alerts isn't set to Off and your volume is up. |
 | No desktop notification | Notifications only show when FocusDeck is in a background tab. If Settings says “Blocked by the browser”, allow notifications for this page in the browser's site settings. |
 | A shortcut doesn't work | Click outside any text box first (or press Esc), and make sure you are on the Today tab. |
 | Undo says something changed | Undo only works on the very last change. Fix it by hand instead. |
 | Insights is empty | It appears after 3 credited focus sessions. |
 | Late-night session shows on the wrong day | Adjust Settings → Day starts at. |
-| Want to check the app works | Settings → Self-check → Run. All 21 tests should pass. Run it in light and in dark mode, since one test checks the colors on screen. |
+| Want to check the app works | Settings → Self-check → Run. Every test should pass. Run it in light and in dark mode, since one test checks the colors on screen. |
 
 **Does it work offline?** Yes. Since v5.2 it loads nothing from the internet, and since v5.3 its security policy blocks any network request.
 

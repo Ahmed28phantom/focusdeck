@@ -8,11 +8,12 @@ A Pomodoro timer, day planner and focus log in a single HTML file. Download it, 
 
 - **Timer that keeps real time.** Focus, short and long breaks. It survives reloads and sleeping laptops, and logs a session that ended while the tab was closed.
 - **Honest credit.** A full session counts as 1, *Finish Early* counts the fraction you did, *Discard* counts nothing.
-- **Day planning.** Today and Later lists, quick add with `#tag ~estimate`, and a capacity line that tells you whether today's plan fits your daily target.
+- **Day planning.** Today and Later lists, quick add with `#tag ~estimate`, reordering by mouse, keyboard or touch, and a capacity line that tells you whether today's plan fits your daily target.
 - **Focus helpers.** Press `D` to park a distraction mid-session; rate each session Scattered, Steady or Deep.
 - **History.** Every session, day by day. Delete mistakes, log sessions you forgot to time.
-- **Insights.** Focus per day, when in the week you focus best, how your estimates compare with reality, and session quality.
-- **Your data stays yours.** Everything is stored in your browser. Export a JSON backup or a CSV of every session (ready for Excel or pandas).
+- **Insights.** Focus per day, when in the week you focus best, time per tag, how your estimates compare with reality, and session quality.
+- **Your data stays yours.** Everything is stored in your browser. Export a JSON backup or a CSV of every session (ready for Excel or pandas). If two weeks pass without a backup, FocusDeck reminds you.
+- **Open it in several tabs** and they stay in sync.
 - **Light and dark,** following your system. Works at phone width with a bottom tab bar.
 
 | Insights | On a phone, dark mode |
@@ -37,6 +38,7 @@ The full manual is in [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 | N | New task |
 | D | Note a distraction |
 | 1 / 2 / 3 | Rate the session that just ended |
+| Alt ↑ / ↓ (⌥ on Mac) | Move the task you've tabbed to up or down |
 | Ctrl Z / ⌘Z | Undo the last change (Shift for redo) |
 | ? | Show all shortcuts |
 
@@ -46,10 +48,11 @@ The full manual is in [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 - Only the app's own script can run, pinned by its SHA-256 hash, so a crafted backup file can't inject code. Imported data is also cleaned field by field.
 - Exported CSVs are safe to open in Excel: text that looks like a formula is escaped.
 - Nothing is sent anywhere. There is no server.
+- **One thing to know about Chrome:** every HTML file you open from your disk shares one storage area there, so any other local HTML file you open in Chrome can read FocusDeck's data. Only open local HTML files you trust.
 
 ## Built-in self-check
 
-Settings → Self-check → **Run** runs 21 tests covering the timer, streaks, stats, imports, input cleaning and color contrast. You can also open the file with `#selftest` at the end of the address.
+Settings → Self-check → **Run** runs the built-in tests covering the timer, streaks, stats, imports, input cleaning and color contrast. You can also open the file with `#selftest` at the end of the address.
 
 ## Editing the code
 
@@ -62,12 +65,18 @@ python3 tools/csp_hash.py FocusDeck.html          # update the hash
 python3 tools/csp_hash.py --check FocusDeck.html  # check only
 ```
 
-If you forget, the app shows “FocusDeck couldn’t start” rather than failing silently. Then run the self-check.
+If you forget, the app shows “FocusDeck couldn’t start” rather than failing silently.
 
-After a visual change, retake the screenshots in `docs/screenshots/`. This needs Node and Google Chrome, and it only ever shows demo data:
+Then run the checks. This needs Node and Google Chrome, and uses a fresh browser profile, so it never touches your data. It checks the hash and runs the self-check in light, dark, Increase Contrast and Reduce Transparency. It also tests what the self-check can't, because it would change your data: two open tabs, ending and undoing sessions, the question sheets, reordering, importing old data, Insights and the backup reminder. GitHub runs the same checks on every push (`.github/workflows/check.yml`).
 
 ```bash
 cd tools && npm install && cd ..   # once
+node tools/check.mjs
+```
+
+After a visual change, retake the screenshots in `docs/screenshots/`. It also needs Node and Chrome, and it only ever shows demo data:
+
+```bash
 node tools/screenshots.mjs
 ```
 

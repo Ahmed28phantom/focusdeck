@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.4 · 2026-10-22 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.5 · 2026-10-23 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ox/xN3WP3bvkkMGWrOsd/StEhZjVIgb4kx0V483d2PU='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eTUHrVbV7jWwIcZ4JlYISaFWdnbCvfBqX4x4/V4PCPM='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -411,6 +411,8 @@ table.t{width:100%;border-collapse:collapse;font-size:.875rem;margin-top:6px}
 .rbars .rb{height:8px;background:var(--fill);border-radius:999px;overflow:hidden}
 .rbars .rb i{display:block;height:100%;background:var(--accent);border-radius:999px}
 .rbars .n{font-variant-numeric:tabular-nums;color:var(--ink2);text-align:right}
+.rbars.tags{grid-template-columns:fit-content(10em) 1fr auto}   /* v5.5: time by tag; tags are up to 24 characters */
+.rbars .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .foot{font-size:.8125rem;color:var(--ink2);margin:6px 16px 0}
 .emptybig{color:var(--ink2);padding:24px 16px;margin:0;max-width:46ch}
 
@@ -449,9 +451,11 @@ dialog[open]{animation:sheetIn .22s ease-out}
 .dbody{padding:16px;display:flex;flex-direction:column;gap:14px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dbody .field{background:var(--surface)}
-@media (prefers-color-scheme: dark){ .dbody .field,.destructive{background:var(--fill)} .destructive:hover{background:var(--fill2)} }
-.destructive{width:100%;min-height:max(var(--hit),44px);background:var(--surface);color:var(--danger);border:0;border-radius:10px;font-weight:600}
-.destructive:hover{background:var(--fill)}
+@media (prefers-color-scheme: dark){ .dbody .field,.destructive,.choice{background:var(--fill)} .destructive:hover,.choice:hover{background:var(--fill2)} }
+.destructive,.choice{width:100%;min-height:max(var(--hit),44px);background:var(--surface);color:var(--danger);border:0;border-radius:10px;font-weight:600}
+.destructive:hover,.choice:hover{background:var(--fill)}
+.choice{color:var(--accent)}   /* v5.5: the main button of a question that doesn't delete anything */
+.dbody .msg{margin:0;font-size:.9375rem;color:var(--ink2)}
 .actions{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}
 .actions .sp{flex:1}
 .keylist{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:0;font-size:.9375rem}
@@ -623,7 +627,7 @@ dialog[open]{animation:sheetIn .22s ease-out}
 
   <h2 class="gtitle">Your data</h2>
   <div class="card rows">
-    <div class="srow"><span>Backup <small>tasks, sessions and settings as JSON</small></span><span class="inline"><button class="btn small" data-act="exportJson">Export</button><button class="btn small" data-act="importJson">Restore…</button></span></div>
+    <div class="srow"><span>Backup <small>tasks, sessions and settings as JSON. <span id="backupAge"></span></small></span><span class="inline"><button class="btn small" data-act="exportJson">Export</button><button class="btn small" data-act="importJson">Restore…</button></span></div>
     <div class="srow"><span>Sessions as CSV <small>for Excel or pandas</small></span><button class="btn small" data-act="exportCsv">Export</button></div>
     <div class="srow"><span>Import from the old FocusDeck <small>reads v3/v4 data from this browser</small></span><button class="btn small" data-act="importLegacy">Import</button></div>
     <details class="paste"><summary>Old version used in a different browser? Paste its data</summary>
@@ -631,6 +635,7 @@ dialog[open]{animation:sheetIn .22s ease-out}
       <textarea class="field" id="pasteBox" rows="4" aria-label="Old FocusDeck data" placeholder="Paste here"></textarea>
       <button class="btn small" data-act="importPaste">Import Pasted Data</button>
     </details>
+    <div class="srow" id="persistRow"><span>Protect from clean-up <small id="persistStatus"></small></span><button class="btn small" id="persistBtn" data-act="persist">Protect</button></div>
     <div class="srow"><span>Erase everything</span><button class="btn small danger" data-act="eraseAll">Erase…</button></div>
   </div>
   <p class="gfoot">Everything is stored in this browser only. Clearing site data erases it, so export a backup now and then.</p>
@@ -652,9 +657,12 @@ dialog[open]{animation:sheetIn .22s ease-out}
       <label class="f">Title<input class="field" name="title" required maxlength="120" autocomplete="off"></label>
       <div class="row2">
         <label class="f">Tag<input class="field" name="tag" list="tagList" maxlength="24" autocomplete="off"></label>
-        <label class="f">Estimate (sessions)<input class="field" name="estimate" type="number" min="1" max="60"></label>
+        <label class="f">Estimate (sessions)<input class="field" name="estimate" type="number" min="1" max="99"></label>
       </div>
-      <label class="f">Plan<select class="field" name="plan"><option value="today">Today</option><option value="later">Later</option></select></label>
+      <div class="row2">
+        <label class="f">Plan<select class="field" name="plan"><option value="today">Today</option><option value="later">Later</option></select></label>
+        <label class="f">Position<select class="field" name="pos"></select></label>
+      </div>
       <p class="hint" id="taskInfo"></p>
       <button type="button" class="destructive" data-act="deleteTask">Delete Task</button>
     </div>
@@ -671,11 +679,20 @@ dialog[open]{animation:sheetIn .22s ease-out}
       <dt><kbd>N</kbd></dt><dd>Add a task for today</dd>
       <dt><kbd>D</kbd></dt><dd>Note a distraction during focus</dd>
       <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>Rate the session that just ended</dd>
+      <dt><kbd class="alt">Alt</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Move the task you’ve tabbed to up or down its list</dd>
       <dt><kbd class="mod">Ctrl</kbd> <kbd>Z</kbd></dt><dd>Undo the last change (any tab)</dd>
       <dt><kbd>Shift</kbd> <kbd class="mod">Ctrl</kbd> <kbd>Z</kbd></dt><dd>Redo</dd>
       <dt><kbd>?</kbd></dt><dd>Show this list</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close or cancel</dd>
     </dl>
+  </div>
+</dialog>
+
+<dialog class="glass" id="askDialog" aria-labelledby="askTitle" aria-describedby="askBody">
+  <div class="navbar"><button type="button" class="nb" data-act="closeDialog">Cancel</button><h3 id="askTitle"></h3><span></span></div>
+  <div class="dbody">
+    <p class="msg" id="askBody"></p>
+    <button type="button" class="destructive" id="askOk" data-act="askOk"></button>
   </div>
 </dialog>
 
@@ -694,6 +711,8 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const pad = n => String(n).padStart(2, '0');
 const clamp = (v, lo, hi, fallback) => Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
 const HOUR = 3600e3;
+const MAX_DATE_MS = 8.64e15;   // the furthest date JavaScript can represent
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 /** Calendar day a timestamp belongs to, shifted so the day starts at `startHour`. */
@@ -710,6 +729,7 @@ function fmtDayLabel(k, todayK) {
   if (k === addDays(todayK, -1)) return 'Yesterday';
   return keyToDate(k).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 }
+const MAX_ESTIMATE = 99;   // quick add's ~NN takes up to two digits; the edit sheet and imports allow the same
 const RATING = { 1: 'Scattered', 2: 'Steady', 3: 'Deep' };
 const OUTCOME = { completed: 'Full', early: 'Ended early', abandoned: 'Discarded' };
 
@@ -769,6 +789,24 @@ const Core = {
     }
     return count > 0 && count % longEvery === 0 ? 'long' : 'short';
   },
+  /** Focus time per tag, from each session's task. Sessions with no task, or whose task was deleted, count as untagged (''). */
+  timeByTag(sessions, tasks) {
+    const tagOf = new Map(tasks.map(t => [t.id, t.tag || ''])), sec = {};
+    for (const s of sessions) {
+      if (s.kind !== 'focus' || s.outcome === 'abandoned' || !(s.actualSec > 0)) continue;
+      const k = tagOf.get(s.taskId) || '';
+      sec[k] = (sec[k] || 0) + s.actualSec;
+    }
+    return Object.entries(sec).map(([tag, n]) => ({ tag, sec: n })).sort((a, b) => b.sec - a.sec);
+  },
+  /** Days since the last backup once that's two weeks or more and there's something to lose, else null.
+      With no backup yet, it counts from the first session. */
+  backupDue(sessions, lastBackupAt, nowMs) {
+    if (sessions.length < 5) return null;
+    const since = lastBackupAt || sessions.reduce((a, s) => Math.min(a, s.start), nowMs);
+    const days = Math.floor((nowMs - since) / 864e5);
+    return days >= 14 ? days : null;
+  },
   /** "Stats past paper #stats ~6" → { title, tag: 'stats', estimate: 6 } */
   parseQuick(raw) {
     let tag = '', estimate = null;
@@ -808,7 +846,7 @@ const Core = {
     if (old.short) settings.shortMin = old.short;
     if (old.long) settings.longMin = old.long;
     if (old.longAfter) settings.longEvery = old.longAfter;
-    const focusMin = settings.focusMin || 25;
+    const focusMin = clamp(Math.round(Number(settings.focusMin)), ...SETTING_LIMITS.focusMin, 25);   // v5.5: held to the Settings range
     const rank = { high: 0, med: 1, low: 2 };
     const oldTasks = (Array.isArray(d.tasks) ? d.tasks : []).slice()
       .sort((a, b) => (!!a.done - !!b.done) || ((rank[a.priority] ?? 1) - (rank[b.priority] ?? 1)));
@@ -821,13 +859,15 @@ const Core = {
         status: t.done ? 'done' : 'open', today: !t.done, order: i, createdAt: created, doneAt: t.done ? created : null };
     });
     const sessions = [], counted = {};
+    // v5.5: caps on the old counters, far above anything real, so a crafted file can't make millions of sessions
+    const MAX_LEGACY_DAY = 200, MAX_LEGACY_TASK = 1000;
     const make = (start, taskId) => ({ id: uid(), kind: 'focus', taskId, taskTitle: '', start, end: start + focusMin * 60e3,
       plannedSec: focusMin * 60, actualSec: focusMin * 60, outcome: 'completed', rating: null, distractions: [], note: '', imported: true });
     for (const day of (Array.isArray(d.history) ? d.history : [])) {
       if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day.date)) continue;
       const base = keyToDate(day.date); base.setHours(9, 0, 0, 0);
       const list = Array.isArray(day.sessions) ? day.sessions : [];
-      const total = Math.max(day.pomos || 0, list.length);
+      const total = Math.min(MAX_LEGACY_DAY, Math.max(day.pomos || 0, list.length));
       for (let j = 0; j < total; j++) {
         const taskId = (list[j] && idMap[list[j].taskId]) || null;
         if (taskId) counted[taskId] = (counted[taskId] || 0) + 1;
@@ -836,7 +876,7 @@ const Core = {
     }
     // Pomos added by hand on a task (old +/− buttons) never reached history: keep them so progress matches.
     for (const t of oldTasks) {
-      const id = idMap[t.id], gap = (t.pomosDone || 0) - (counted[id] || 0);
+      const id = idMap[t.id], gap = Math.min(MAX_LEGACY_TASK, (t.pomosDone || 0) - (counted[id] || 0));
       const base = new Date(Date.parse(t.created) || nowMs); base.setHours(20, 0, 0, 0);
       for (let k = 0; k < gap; k++) sessions.push(make(base.getTime() + k * (focusMin + 5) * 60e3, id));
     }
@@ -848,10 +888,13 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.4';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.5';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
+/** v5.5: the ranges the Settings tab allows (the self-test “The Settings inputs allow the same ranges as imports” keeps them in step). Imports are held to them too. */
+const SETTING_LIMITS = { focusMin: [1, 120], shortMin: [1, 60], longMin: [1, 90], longEvery: [2, 12], dailyTarget: [1, 30], dayStartHour: [0, 6] };
+const SOUNDS = ['chime', 'soft', 'off'];
 let S;                      // the whole app state
 let currentView = 'today';
 let attention = '';         // tab-title nudge after a session ends in the background
@@ -887,19 +930,27 @@ function normalize(d) {
   for (const [k, def] of Object.entries(DEFAULT_SETTINGS)) {
     const v = (d.settings || {})[k];
     if (v === undefined) continue;
-    s.settings[k] = typeof def === 'number' ? num(v, def) : typeof def === 'boolean' ? !!v : String(v);
+    // v5.5: numbers are rounded and held to the Settings ranges, so a crafted backup can't hang the
+    // day strip (dailyTarget: 1e9) or break the break maths (longEvery: 0)
+    s.settings[k] = typeof def === 'number' ? clamp(Math.round(num(v, def)), ...SETTING_LIMITS[k], def)
+      : typeof def === 'boolean' ? !!v : k === 'sound' ? (SOUNDS.includes(v) ? v : def) : String(v);
   }
   s.tasks = (Array.isArray(d.tasks) ? d.tasks : []).filter(t => t && typeof t === 'object').map(t => ({
     ...t, id: safeId(t.id), title: String(t.title ?? 'Untitled').slice(0, 120), tag: String(t.tag ?? '').slice(0, 24),
-    estimate: num(t.estimate), status: t.status === 'done' ? 'done' : 'open', today: t.today !== false,
+    estimate: num(t.estimate, 0) >= 1 ? Math.min(MAX_ESTIMATE, Math.round(num(t.estimate))) : null, status: t.status === 'done' ? 'done' : 'open', today: t.today !== false,
     order: num(t.order, 0), createdAt: num(t.createdAt, Date.now()), doneAt: num(t.doneAt) }));
-  s.sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter(x => x && typeof x === 'object' && num(x.start) != null).map(x => ({
-    ...x, id: safeId(x.id), kind: ['focus', 'short', 'long'].includes(x.kind) ? x.kind : 'focus',
-    taskId: x.taskId ? safeId(x.taskId) : null, taskTitle: String(x.taskTitle ?? '').slice(0, 120),
-    start: num(x.start), end: num(x.end, num(x.start)), plannedSec: num(x.plannedSec, 1500) || 1500, actualSec: num(x.actualSec, 0),
-    outcome: ['completed', 'early', 'abandoned'].includes(x.outcome) ? x.outcome : 'completed',
-    rating: [1, 2, 3].includes(x.rating) ? x.rating : null, note: String(x.note ?? '').slice(0, 200),
-    distractions: (Array.isArray(x.distractions) ? x.distractions : []).map(z => ({ at: num(z && z.at, num(x.start)), text: String((z && z.text) ?? '').slice(0, 120) })) }));
+  // v5.5: session times are held to what the timer can produce: a start that's a real date, a planned length
+  // over 0 and at most a day, time spent from 0 up to the planned length, and an end no earlier than the start.
+  // A negative planned length gave negative credit, and a huge time spent hung Insights (splitByHour).
+  s.sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter(x => x && typeof x === 'object' && Math.abs(num(x.start, NaN)) <= MAX_DATE_MS).map(x => {
+    const start = num(x.start), plannedSec = num(x.plannedSec, 0) > 0 ? Math.min(86400, num(x.plannedSec)) : 1500;
+    return { ...x, id: safeId(x.id), kind: ['focus', 'short', 'long'].includes(x.kind) ? x.kind : 'focus',
+      taskId: x.taskId ? safeId(x.taskId) : null, taskTitle: String(x.taskTitle ?? '').slice(0, 120),
+      start, end: clamp(num(x.end, start), start, MAX_DATE_MS, start), plannedSec, actualSec: clamp(num(x.actualSec, 0), 0, plannedSec, 0),
+      outcome: ['completed', 'early', 'abandoned'].includes(x.outcome) ? x.outcome : 'completed',
+      rating: [1, 2, 3].includes(x.rating) ? x.rating : null, note: String(x.note ?? '').slice(0, 200),
+      distractions: (Array.isArray(x.distractions) ? x.distractions : []).map(z => ({ at: num(z && z.at, start), text: String((z && z.text) ?? '').slice(0, 120) })) };
+  });
   s.timer = cleanTimer(d.timer, s.settings);
   s.currentTaskId = d.currentTaskId ? safeId(d.currentTaskId) : null;
   s.pendingRating = d.pendingRating ? safeId(d.pendingRating) : null;
@@ -923,9 +974,8 @@ function load() {
   if (legacy) {
     try {
       const m = Core.migrateLegacy(JSON.parse(legacy), Date.now());
-      Object.assign(S.settings, m.settings);
-      S.tasks = m.tasks; S.sessions = m.sessions;
-      S.timer = idleTimer('focus', S.settings);
+      // v5.5: through normalize() like any other data, so old settings are held to the Settings ranges too
+      S = normalize({ ...S, settings: { ...S.settings, ...m.settings }, tasks: m.tasks, sessions: m.sessions });
       S.currentTaskId = (S.tasks.find(t => t.status === 'open' && t.today) || {}).id || null;
       save();
       return { tasks: m.tasks.length, sessions: m.sessions.length };
@@ -1387,6 +1437,15 @@ function renderInsights() {
     h += `<section class="isec card"><h3>When you focus</h3><p class="lead">${share}% of your focus time falls between ${pad(bi)}:00 and ${pad((bi + 2) % 24)}:00.</p><div role="img" aria-label="Focus time by weekday and hour; busiest from ${pad(bi)}:00 to ${pad((bi + 2) % 24)}:00">${g}</div></div></section>`;
   }
 
+  // v5.5: Time by tag (shown once at least one tag has time)
+  const byTag = Core.timeByTag(counted, S.tasks), topTag = byTag.find(x => x.tag);
+  if (topTag) {
+    const shown = byTag.slice(0, 8), rest = byTag.slice(8).reduce((a, x) => a + x.sec, 0);
+    const rows = shown.map(x => [x.tag ? '#' + esc(x.tag) : '<span class="muted">untagged</span>', x.sec]).concat(rest ? [['<span class="muted">everything else</span>', rest]] : []);
+    const bars = rows.map(([label, sec]) => `<span class="lbl">${label}</span><span class="rb"><i style="width:${sec / shown[0].sec * 100}%"></i></span><span class="n">${fmtHours(sec)}</span>`).join('');
+    h += `<section class="isec card"><h3>Time by tag</h3><p class="lead">Of your tagged work, <b>#${esc(topTag.tag)}</b> took the most: ${fmtHours(topTag.sec)}, ${Math.round(topTag.sec / totalSec * 100)}% of your focus time.</p><div class="rbars tags">${bars}</div></section>`;
+  }
+
   // Estimates
   const est = Core.estimateStats(S.tasks, S.sessions);
   let e;
@@ -1455,6 +1514,19 @@ function syncSettings() {
   if (!('Notification' in window)) st.textContent = 'Not supported in this browser.';
   else if (Notification.permission === 'denied') st.textContent = 'Blocked by the browser — allow notifications for this page to use it.';
   else st.textContent = '';
+  // v5.5: when this browser last exported a backup
+  const last = loadUI().lastBackupAt, tk = dayKey(Date.now()), lk = last && dayKey(last);
+  $('#backupAge').textContent = !last ? 'Not exported from this browser yet.'
+    : `Last exported ${lk === tk ? 'today' : lk === addDays(tk, -1) ? 'yesterday' : 'on ' + fmtDayLabel(lk, tk)}.`;
+  syncPersist();
+}
+/** v5.5: whether the browser has agreed not to clear FocusDeck's data when disk space runs low. */
+async function syncPersist() {
+  const st = navigator.storage;
+  if (!st || !st.persist || !st.persisted) { $('#persistRow').hidden = true; return; }
+  let on = false; try { on = await st.persisted(); } catch (e) {}
+  $('#persistStatus').textContent = on ? 'The browser won’t clear it to free up space.' : 'The browser may clear it if your disk runs low on space.';
+  $('#persistBtn').hidden = on;
 }
 /** v5.2 follows the system appearance only (HIG › Dark Mode: avoid an app-specific appearance setting). */
 function applyTheme() { document.documentElement.removeAttribute('data-theme'); }
@@ -1468,6 +1540,20 @@ function bindGlass() {
     g.style.setProperty('--mx', (e.clientX - r.left) + 'px');
     g.style.setProperty('--my', (e.clientY - r.top) + 'px');
   }, { passive: true });
+}
+
+/* ---------- Questions ---------- */
+/** v5.5: asks in a sheet like the rest of the app, instead of the browser's confirm(). Resolves to true for the
+    main button. Cancel comes first, so it has the focus when the sheet opens and Return never erases by accident. */
+let askResolve = null;
+function ask(title, body, okLabel, destructive = true) {
+  const d = $('#askDialog'), ok = $('#askOk');
+  if (askResolve) askResolve(false);
+  $('#askTitle').textContent = title; $('#askBody').textContent = body;
+  ok.textContent = okLabel; ok.className = destructive ? 'destructive' : 'choice';
+  d.returnValue = '';
+  if (!d.open) d.showModal();
+  return new Promise(res => { askResolve = res; });
 }
 
 /* ---------- Toast ---------- */
@@ -1488,11 +1574,12 @@ function hideToast() { $('#toast').classList.remove('show'); }
    7. Actions
    ============================================================ */
 const VIEWS = ['today', 'history', 'insights', 'settings'];
-const UI_KEY = 'focusdeck5-ui';   // view preference only; not part of the data format or backups
+const UI_KEY = 'focusdeck5-ui';   // last view and backup dates for this browser; not part of the data format or backups
 function loadUI() { try { return JSON.parse(localStorage.getItem(UI_KEY)) || {}; } catch (e) { return {}; } }
+function saveUI(patch) { try { localStorage.setItem(UI_KEY, JSON.stringify({ ...loadUI(), ...patch })); } catch (e) {} }
 function showView(v, opts = {}) {
   currentView = v;
-  try { localStorage.setItem(UI_KEY, JSON.stringify({ view: v })); } catch (e) {}
+  saveUI({ view: v });
   ['today', 'history', 'insights', 'settings'].forEach(x => { $('#view-' + x).hidden = x !== v; });
   $$('nav [data-view]').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
   if (v === 'history') renderHistory();
@@ -1538,11 +1625,33 @@ function openEdit(id) {
   f.elements.estimate.value = t.estimate || '';
   f.elements.plan.value = t.today ? 'today' : 'later';
   f.elements.plan.disabled = t.status === 'done';
+  fillPos(t, !!t.today);
   const sec = S.sessions.filter(s => s.taskId === id && s.kind === 'focus' && s.outcome !== 'abandoned').reduce((a, s) => a + s.actualSec, 0);
   $('#taskInfo').textContent = `${fmtUnits(progressOf(id))} sessions logged · ${fmtDur(sec)} in total. Fix missed time from History → Log a missed session.`;
   $('#tagList').innerHTML = [...new Set(S.tasks.map(x => x.tag).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
   $('#taskDialog').showModal();
   f.elements.title.focus();
+}
+
+/** v5.5: the edit sheet's Position menu lists the places in the task's list, or in the list it's about to join. */
+function fillPos(t, today) {
+  const sel = $('#taskForm').elements.pos;
+  sel.disabled = t.status === 'done';
+  if (sel.disabled) { sel.innerHTML = '<option value="0">Done</option>'; return; }
+  const list = today ? openToday() : openLater(), i = list.indexOf(t), n = list.length + (i < 0 ? 1 : 0);
+  sel.innerHTML = Array.from({ length: n }, (_, k) => `<option value="${k}">${k + 1} of ${n}</option>`).join('');
+  sel.value = String(i < 0 ? n - 1 : i);
+}
+
+/** v5.5: move a task up or down its list (Alt+↑/↓). Dragging needs a mouse. */
+function moveTask(id, delta) {
+  const t = taskById(id); if (!t || t.status !== 'open') return false;
+  const list = t.today ? openToday() : openLater(), i = list.indexOf(t), j = i + delta;
+  if (j < 0 || j >= list.length) return false;
+  list.splice(i, 1); list.splice(j, 0, t); list.forEach((x, k) => { x.order = k; });
+  save(); renderAll();
+  announce(`${t.title}: ${j + 1} of ${list.length} in ${t.today ? 'Today' : 'Later'}.`);
+  return true;
 }
 
 function deleteTask(id) {
@@ -1592,11 +1701,11 @@ function exportCsv() {
   download(`focusdeck-sessions-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv');
 }
 
-function mergeLegacy(d) {
+async function mergeLegacy(d) {
   let m;
   try { m = Core.migrateLegacy(d, Date.now()); } catch (e) { toast('Couldn’t read that data.'); return; }
   if (!m.tasks.length && !m.sessions.length) { toast('No tasks or sessions found in that data.'); return; }
-  if (S.sessions.some(s => s.imported) && !confirm('You’ve imported old data before. Importing again will create duplicates. Continue?')) return;
+  if (S.sessions.some(s => s.imported) && !await ask('Import Again?', 'You’ve imported old FocusDeck data before, so importing it again creates duplicate tasks and sessions.', 'Import Anyway', false)) return;
   withUndo(`Imported ${m.tasks.length} tasks and ${m.sessions.length} sessions`, () => {
     const base = maxOrder(true) + 1;
     m.tasks.forEach((t, i) => { t.order = base + i; });
@@ -1605,10 +1714,10 @@ function mergeLegacy(d) {
   });
 }
 
-function importData(d) {
+async function importData(d) {
   if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
   if (d && d.version === 5 && Array.isArray(d.sessions)) {
-    if (!confirm(`Replace everything with this backup? It has ${(d.tasks || []).length} tasks and ${d.sessions.length} sessions.`)) return;
+    if (!await ask('Restore This Backup?', `Everything in this browser is replaced by the backup’s ${plural((d.tasks || []).length, 'task')} and ${plural(d.sessions.length, 'session')}. You can undo straight after.`, 'Replace Everything')) return;
     withUndo('Backup restored', () => {
       disarm();
       S = normalize(d);
@@ -1644,6 +1753,7 @@ const ACTIONS = {
   edit: (b, id) => openEdit(id),
   deleteTask: () => deleteTask(editId),
   closeDialog: b => b.closest('dialog').close(),
+  askOk: () => $('#askDialog').close('ok'),
   toastAction: () => { const fn = $('#toast')._action; hideToast(); if (fn) fn(); },
   deleteSession: b => {
     const sid = b.closest('[data-sid]').dataset.sid;
@@ -1654,7 +1764,15 @@ const ACTIONS = {
   histMore: () => { histDays += 14; renderHistory(); },
   range: b => { insightRange = +b.dataset.r; renderInsights(); },
   testSound: () => { Sound.unlock(); Sound.playNow(); if (S.settings.sound === 'off') toast('Sound is off.'); },
-  exportJson: () => download(`focusdeck-backup-${todayKey()}.json`, JSON.stringify({ ...S, appVersion: APP_VERSION, exportedAt: new Date().toISOString() }, null, 1), 'application/json'),
+  exportJson: () => {
+    download(`focusdeck-backup-${todayKey()}.json`, JSON.stringify({ ...S, appVersion: APP_VERSION, exportedAt: new Date().toISOString() }, null, 1), 'application/json');
+    saveUI({ lastBackupAt: Date.now() }); syncSettings();
+  },
+  persist: async () => {
+    let ok = false; try { ok = await navigator.storage.persist(); } catch (e) {}
+    toast(ok ? 'Protected: the browser won’t clear FocusDeck’s data to free up space.' : 'The browser didn’t allow it. Regular backups keep your data safe.');
+    syncPersist();
+  },
   exportCsv,
   importJson: () => $('#fileIn').click(),
   importLegacy: () => {
@@ -1668,8 +1786,8 @@ const ACTIONS = {
     let d; try { d = JSON.parse(txt); } catch (e) { toast('That isn’t valid data — copy it again.'); return; }
     importData(d); $('#pasteBox').value = '';
   },
-  eraseAll: () => {
-    if (!confirm('Erase all tasks, sessions and settings? You can undo for a few seconds — export a backup first if unsure.')) return;
+  eraseAll: async () => {
+    if (!await ask('Erase Everything?', 'All tasks, sessions and settings in this browser are deleted. You can undo straight after; export a backup first if you’re unsure.', 'Erase Everything')) return;
     withUndo('Everything erased', () => { disarm(); S = freshState(); applyTheme(); });
   },
   step: b => {
@@ -1725,12 +1843,17 @@ function bindEvents() {
     const title = f.elements.title.value.trim(); if (!title) return;
     t.title = title.slice(0, 120);
     t.tag = f.elements.tag.value.trim().replace(/^#/, '');
-    t.estimate = clamp(parseInt(f.elements.estimate.value, 10), 1, 60, null);
-    const today = f.elements.plan.value === 'today';
-    if (t.status === 'open' && today !== !!t.today) { t.today = today; t.order = maxOrder(today) + 1; }
+    t.estimate = clamp(parseInt(f.elements.estimate.value, 10), 1, MAX_ESTIMATE, null);
+    if (t.status === 'open') {   // v5.5: Position places it in its list (in the other one, if Plan changed)
+      const today = f.elements.plan.value === 'today', list = (today ? openToday() : openLater()).filter(x => x !== t);
+      list.splice(clamp(parseInt(f.elements.pos.value, 10), 0, list.length, list.length), 0, t);
+      t.today = today; list.forEach((x, k) => { x.order = k; });
+    }
     $('#taskDialog').close();
     save(); renderAll();
   });
+
+  $('#taskForm').elements.plan.addEventListener('change', e => { const t = taskById(editId); if (t) fillPos(t, e.target.value === 'today'); });
 
   $('#distractForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -1739,6 +1862,7 @@ function bindEvents() {
     closeDistract(); save(); renderTimer();
     toast('Noted. Back to it.');
   });
+  $('#askDialog').addEventListener('close', e => { const res = askResolve; askResolve = null; if (res) res(e.target.returnValue === 'ok'); });
   $('#distractInput').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeDistract(); } });
   $('#rate').addEventListener('submit', e => { e.preventDefault(); dismissRate(null); });
 
@@ -1823,7 +1947,7 @@ function bindEvents() {
   const t = $('#toast');
   ['mouseenter', 'focusin'].forEach(ev => t.addEventListener(ev, () => clearTimeout(toastTO)));
   ['mouseleave', 'focusout'].forEach(ev => t.addEventListener(ev, () => { if (t.classList.contains('show')) armToast(); }));
-  if (IS_MAC) { $('#undoKey').textContent = '⌘Z'; $$('kbd.mod').forEach(k => { k.textContent = '⌘'; }); }
+  if (IS_MAC) { $('#undoKey').textContent = '⌘Z'; $$('kbd.mod').forEach(k => { k.textContent = '⌘'; }); $$('kbd.alt').forEach(k => { k.textContent = '⌥'; }); }
 
   document.addEventListener('keydown', e => {
     const tag = e.target.tagName;
@@ -1831,6 +1955,15 @@ function bindEvents() {
     // Standard undo/redo shortcuts work everywhere outside text fields (text fields keep their own undo).
     if ((IS_MAC ? e.metaKey : e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'z' && !document.querySelector('dialog[open]')) {
       e.preventDefault(); e.shiftKey ? redo() : undo(); return;
+    }
+    // v5.5: Alt+↑/↓ (⌥ on a Mac) moves the focused task and keeps the focus on it
+    if (e.altKey && !e.metaKey && !e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      const li = e.target.closest('#listToday li[data-id], #listLater li[data-id]');
+      if (!li) return;
+      e.preventDefault();
+      const id = li.dataset.id, act = e.target.dataset.act;
+      if (moveTask(id, e.key === 'ArrowUp' ? -1 : 1)) { const el = $(`li[data-id="${id}"] [data-act="${act}"]`); if (el) el.focus(); }
+      return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (document.querySelector('dialog[open]')) return;
@@ -1853,6 +1986,17 @@ function bindEvents() {
     if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }
   });
   window.addEventListener('pagehide', save);
+  // v5.5: another tab saved. Take its data, so this tab never writes an older copy over it.
+  // Every change here is saved as it happens, so there's nothing newer in this tab to lose.
+  window.addEventListener('storage', e => {
+    if (e.key !== KEY || !e.newValue || e.newValue === JSON.stringify(S)) return;
+    let d; try { d = JSON.parse(e.newValue); } catch (err) { return; }
+    disarm();
+    S = normalize(d);
+    if (S.timer.status === 'running') armTimers();
+    if (editId && !taskById(editId)) $('#taskDialog').close();   // that task was deleted in the other tab
+    renderAll();
+  });
   let rsz;
   window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (currentView === 'insights') renderInsights(); }, 150); });
 }
@@ -1950,6 +2094,47 @@ const TESTS = [
     eq([Core.taskProgress(m.sessions, id('stats paper')), Core.taskProgress(m.sessions, id('micro ch 11')), Core.taskProgress(m.sessions, id('micro ch 12'))], [5, 4, 2]);
     eq(m.tasks.map(t => t.status), ['open', 'open', 'done']);
   }],
+  ['Imported settings are held to the ranges Settings allows', () => {
+    const s = normalize({ version: 5, settings: { dailyTarget: 1e9, longEvery: 0, focusMin: -5, longMin: 2.6, shortMin: 'x', dayStartHour: 99, sound: '<b>' } }).settings;
+    eq([s.dailyTarget, s.longEvery, s.focusMin, s.longMin, s.shortMin, s.dayStartHour, s.sound], [30, 2, 1, 3, 5, 6, 'chime']);
+  }],
+  ['The Settings inputs allow the same ranges as imports', () => {
+    const off = [];
+    for (const [k, [lo, hi]] of Object.entries(SETTING_LIMITS)) {
+      const el = $(`[data-set="${k}"]`), vals = el.tagName === 'SELECT' ? [...el.options].map(o => +o.value) : [+el.min, +el.max];
+      if (Math.min(...vals) !== lo || Math.max(...vals) !== hi) off.push(`${k}: inputs ${Math.min(...vals)}–${Math.max(...vals)}, limits ${lo}–${hi}`);
+    }
+    if (off.length) throw new Error(off.join(', '));
+  }],
+  ['Any estimate quick add accepts can be saved from the edit sheet', () => {
+    const inp = $('#taskForm').elements.estimate, was = inp.value;
+    inp.value = String(Core.parseQuick('Thesis ~99').estimate);
+    const ok = inp.checkValidity(); inp.value = was;
+    const est = normalize({ version: 5, tasks: [{ title: 'a', estimate: 150 }, { title: 'b', estimate: 2.6 }, { title: 'c' }, { title: 'd', estimate: 0 }] }).tasks.map(t => t.estimate);
+    eq([ok, est], [true, [99, 3, null, null]]);
+  }],
+  ['Imported sessions keep times the timer could have produced', () => {
+    const ses = normalize({ version: 5, sessions: [
+      { start: at(19), plannedSec: -1500, actualSec: 750, outcome: 'early' },
+      { start: at(19), end: at(18), plannedSec: 1500, actualSec: 1e12 },
+      { start: at(19), plannedSec: 1e12, actualSec: -5 },
+      { start: 1e20 }, { start: 'x' }] }).sessions;
+    eq(ses.map(s => [s.plannedSec, s.actualSec, s.end >= s.start, Core.credit(s)]), [[1500, 750, true, 0.5], [1500, 1500, true, 1], [86400, 0, true, 1]]);
+  }],
+  ['Old data with runaway counters is capped', () => {
+    const m = Core.migrateLegacy({ tasks: [{ id: 't', name: 'x', pomosDone: 1e9 }], history: [{ date: '2026-04-26', pomos: 1e9 }] }, at(19));
+    eq(m.sessions.length, 1200);   // 200 for the day + 1000 hand-added on the task
+  }],
+  ['Time by tag adds up focus per tag', () => {
+    const tasks = [{ id: 'a', tag: 'maths' }, { id: 'b', tag: 'maths' }, { id: 'c', tag: '' }];
+    const ses = [fs({ taskId: 'a' }), fs({ taskId: 'b', actualSec: 600, outcome: 'early' }), fs({ taskId: 'c' }), fs({ taskId: 'gone' }), fs({ taskId: 'a', outcome: 'abandoned' }), fs({ kind: 'short', taskId: 'a' })];
+    eq(Core.timeByTag(ses, tasks), [{ tag: '', sec: 3000 }, { tag: 'maths', sec: 2100 }]);
+  }],
+  ['A backup reminder waits for two weeks and five sessions', () => {
+    const five = [1, 2, 3, 4, 5].map(d => fs({ start: at(d) }));
+    eq([Core.backupDue(five.slice(0, 4), null, at(30)), Core.backupDue(five, null, at(14)), Core.backupDue(five, null, at(15, 13)),
+      Core.backupDue(five, at(20), at(30)), Core.backupDue(five, at(10), at(30))], [null, null, 14, null, 20]);
+  }],
 ];
 function runTests() {
   return TESTS.map(([name, fn]) => { try { fn(); return { name, ok: true }; } catch (e) { return { name, ok: false, err: e.message }; } });
@@ -1985,6 +2170,12 @@ function init() {
   document.documentElement.classList.add('ready');
   if (location.hash === '#selftest') { showView('settings'); runTestsUI(); }
   if (migrated) toast(`Brought over ${migrated.tasks} tasks and ${migrated.sessions} sessions from the previous version.`);
+  // v5.5: a nudge to back up, at most once a week, never mid-session or over another message
+  const bk = loadUI(), due = Core.backupDue(S.sessions, bk.lastBackupAt, Date.now());
+  if (due != null && S.timer.status === 'idle' && !$('#toast').classList.contains('show') && !(bk.remindedAt > Date.now() - 7 * 864e5)) {
+    saveUI({ remindedAt: Date.now() });
+    toast(bk.lastBackupAt ? `It’s been ${due} days since your last backup.` : 'You haven’t backed up yet. Your data lives only in this browser.', { label: 'Back Up', fn: ACTIONS.exportJson });
+  }
   setInterval(() => {
     if (S.timer.status !== 'running') renderClock();
     if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }

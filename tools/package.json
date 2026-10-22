@@ -4,6 +4,7 @@
   "description": "Helper scripts for FocusDeck. The app itself has no dependencies.",
   "type": "module",
   "scripts": {
+    "check": "node check.mjs",
     "screenshots": "node screenshots.mjs"
   },
   "devDependencies": {

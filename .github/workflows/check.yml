@@ -1,0 +1,33 @@
+# Runs tools/check.mjs on every push and pull request: the CSP hash, the self-check in each
+# appearance, two open tabs, and the flows that change data. See README → Editing the code.
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Install the check's dependencies
+        run: npm ci
+        working-directory: tools
+
+      # Ubuntu 24.04 blocks the user namespaces Chrome's sandbox needs; this re-allows them
+      # for the run (Puppeteer's documented fix) instead of turning the sandbox off.
+      - name: Let Chrome use its sandbox
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+
+      - name: Check FocusDeck
+        run: node tools/check.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome

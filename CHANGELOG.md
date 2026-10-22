@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.4 | 2026-10-22 | **Current.** Liquid Glass look (same data) |
+| 5.5 | 2026-10-23 | **Current.** Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
+| 5.4 | 2026-10-22 | Liquid Glass look (same data) |
 | 5.3 | 2026-10-20 | Security hardening (same data) |
 | 5.2 | 2026-10-20 | Redesign (same data) |
 | 5.1 | 2026-10-20 | Input cleaning (same app as 5.0) |
@@ -14,7 +15,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.4 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.5 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -32,6 +33,34 @@ Each version keeps its data in the browser, not in the file, under its own stora
 - **Clearing the browser's site data erases everything.** Use Settings → Export backup.
 
 ---
+
+## v5.5 — 2026-10-23
+
+**Why:** fixes and improvements from a code review: data loss with two tabs, imports that could freeze the app, and gaps in reordering, backups and testing. Same data format.
+
+**Fixes**
+- **Two open tabs no longer overwrite each other.** Each tab kept its own copy of your data in memory and saved all of it, so with FocusDeck open twice, the tab you weren't using could save its older copy over the other tab's changes (for example when you switched away from it) and those changes were lost. Now a tab takes the other tab's data as soon as it saves (a `storage` listener in `bindEvents()`, *Events*). Tasks, the timer and everything else stay in step without a reload. If both tabs are open when a session ends, both ring.
+- **Imported settings are held to the ranges the Settings tab allows.** `normalize()` only checked that a setting was a number, so a crafted backup with `dailyTarget: 1e9` froze the app while it built the day strip, and `longEvery: 0` broke the break and capacity maths. Numbers are now rounded and clamped to the new `SETTING_LIMITS` (*State & storage*), and the sound must be Chime, Soft or Off.
+- **Imported sessions keep times the timer could have produced.** A negative planned length gave negative credit, and a huge time spent froze Insights (`splitByHour()` walked it hour by hour). `normalize()` now keeps the planned length between 1 second and a day, time spent between 0 and the planned length, the end no earlier than the start, and drops sessions whose start isn't a real date.
+- **Old v3/v4 data is cleaned too.** On first open, old settings went straight into the app without `normalize()`, so an old focus length of 10⁹ minutes stuck. `load()` now runs the migrated data through `normalize()`. `Core.migrateLegacy()` also holds the focus length to 1–120 minutes and caps the old counters (200 sessions a day, 1,000 hand-added on a task), so a crafted file can't make it build millions of sessions.
+- **Tasks estimated at more than 60 sessions can be edited.** Quick add accepts `~1` to `~99`, but the Edit Task sheet only allowed up to 60, so the browser refused to save any change to such a task. Both now use `MAX_ESTIMATE` (99, in *Utilities*), and imports round estimates and hold them to 1–99.
+
+**Improvements**
+- **Reorder without a mouse.** Dragging only worked with a mouse. Now Tab to a task and press Alt ↑ / ↓ (⌥ on a Mac): it moves, keeps the focus, and its new place is announced to screen readers (`moveTask()`, *Actions*). The Edit Task sheet has a **Position** menu next to Plan, for touch screens (`fillPos()`). It lists the other list's places when you change Plan.
+- **Questions in a sheet.** Erase, Restore and importing old data twice used the browser's own `confirm()`, the only part of the app that didn't look like it. They now use a sheet like Edit Task (`ask()` and `#askDialog`). Cancel has the focus when it opens, so Return or Esc never erases anything.
+- **Backup reminder.** Your data's only copy is in the browser. If you have five or more sessions and two weeks pass without a JSON export (counted from your first session if you've never exported), FocusDeck says so when you open it, with a **Back Up** button. It does this at most once a week, never while a session is running, and never over another message (`Core.backupDue()`, end of `init()`). Settings → Your data shows when you last exported. The date is kept with the last view under `focusdeck5-ui`, not in your data or backups.
+- **Protect from clean-up.** A new row in Settings → Your data asks the browser for persistent storage (`navigator.storage.persist()`), so it won't clear FocusDeck's data when the disk runs low. The browser decides; headless Chrome said no for a file opened from disk.
+- **Time by tag** in Insights: focus time per tag for the chosen range, biggest first, up to eight tags (`Core.timeByTag()`).
+- **Docs:** in Chrome, every HTML file opened from disk shares one storage area. A copy of FocusDeck in another folder, or under another name, sees the same data (tested in Chrome only), and so can any other local HTML file you open there. The README's privacy section and the user guide now say so. The guide also used to say that opening the file from a new folder loses your data, which isn't true in Chrome.
+
+**Code changes in the script:** new `MAX_ESTIMATE`, `MAX_DATE_MS`, `plural()`, `SETTING_LIMITS`, `SOUNDS`, `Core.timeByTag()`, `Core.backupDue()`, `ask()`, `fillPos()`, `moveTask()`, `saveUI()` and `syncPersist()`. Changed: `normalize()`, `load()`, `Core.migrateLegacy()`, `mergeLegacy()` and `importData()` (now async), `openEdit()`, the Edit Task submit handler, `renderInsights()`, `syncSettings()`, `showView()`, the key handler, `bindEvents()` and `init()`. `APP_VERSION` is 5.5. **The CSP hash changed** (`eTUHrVbV7jWwIcZ4JlYISaFWdnbCvfBqX4x4/V4PCPM=`).
+
+**Tests:** seven new self-tests at the end of the list, so the earlier numbers don't change. They cover imported settings, the Settings ranges matching the inputs, large estimates, imported session times, runaway old counters, time by tag and the backup reminder. v5.4 fails the ones it can run.
+- **New `tools/check.mjs`** (`node tools/check.mjs`) runs in headless Chrome with a fresh profile for each scenario, so it never sees your data. It runs the CSP hash check and the self-check in light, dark, Increase Contrast (light and dark) and Reduce Transparency. It also tests what the self-check can't, because it changes data: two tabs at once, Finish Early, Discard, undo and redo (including undo being refused after another change), a session that ended while the app was closed, the question sheets, reordering by keyboard and sheet, old data with out-of-range values, time by tag and the backup reminder. `FOCUSDECK_FILE=…` points it at another copy; v5.4 fails 12 of these checks, and v5.5 passes them all.
+- **GitHub Actions** (`.github/workflows/check.yml`) runs `check.mjs` on every push and pull request.
+- The README and user guide no longer give a test count, which went stale with every release.
+
+**No change** to the data format or the storage key.
 
 ## v5.4 — 2026-10-22
 
@@ -201,7 +230,7 @@ Full rebuild. Same single-file, double-click-to-open app.
 ## How to version from now on
 
 - **Edit `FocusDeck.html` in place;** git keeps every earlier version. For a release, bump `APP_VERSION` and the line-2 comment, commit, and tag it (`git tag v5.5`).
-- **After editing the script, update its hash:** `python3 tools/csp_hash.py FocusDeck.html` (`--check` only reports). Then open the file and run the self-check.
+- **After editing the script, update its hash:** `python3 tools/csp_hash.py FocusDeck.html` (`--check` only reports). Then run `node tools/check.mjs`, or open the file and run the self-check in light and dark.
 - **Fixes and small features** get a minor bump (5.1 → 5.2).
 - **Changes to the stored data format** get a major bump (→ v6). Use a new storage key, plus an import from `focusdeck5`.
 - **Add an entry at the top of this file** for each release: what changed, where in the code, and why.
