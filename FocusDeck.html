@@ -1,0 +1,1997 @@
+<!doctype html>
+<!-- FocusDeck v5.4 · 2026-10-22 · storage key: focusdeck5 · see CHANGELOG.md
+     Security: the CSP below only lets the one script block in this file run, identified by its hash.
+     After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
+<html lang="en" data-mode="idle">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ox/xN3WP3bvkkMGWrOsd/StEhZjVIgb4kx0V483d2PU='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>FocusDeck</title>
+<link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   Tokens. Colors are named by role and adapt to light, dark and
+   Increase Contrast. Every text color clears 4.5:1 on --bg and
+   --surface (self-test #17), and on the color field, the cards
+   and the glass (self-test #21).
+   Focus = indigo (the color Apple devices already use for Focus),
+   Break = teal, Destructive = red. One color, one meaning.
+   v5.4 — two layers, as in Apple's Liquid Glass:
+   · content layer: a soft color field (--f*) that follows the timer,
+     with near-opaque cards (--card) on it;
+   · functional layer: Liquid Glass (--glass) on the tab bar, the
+     timer controls, sheets and the toast only.
+   ============================================================ */
+:root{
+  --bg:#f2f2f7; --surface:#ffffff; --fill:#e9e9ef; --fill2:#dcdce3; --sep:#d1d1d6;
+  --ink:#1d1d1f; --ink2:#55555c; --ink3:#5e5e65;
+  --accent:#4f46c8; --accent-fill:#5b52d6; --on-accent:#ffffff; --accent-soft:#e4e2fb;
+  --break:#0b6574; --break-fill:#0e7486; --on-break:#ffffff; --break-soft:#d3ecef;
+  --danger:#c4001a; --good:#1d7a36; --warn:#a14a00;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.08);
+  /* Content layer: the color field (two soft blobs per timer state) and the cards on it */
+  --fi1:rgba(143,134,255,.16); --fi2:rgba(127,214,224,.14);   /* idle */
+  --ff1:rgba(109,99,255,.12);  --ff2:rgba(176,140,255,.10);   /* focusing */
+  --fb1:rgba(47,184,201,.20);  --fb2:rgba(127,224,181,.16);   /* break */
+  --fp1:rgba(154,154,166,.18); --fp2:rgba(196,196,204,.16);   /* paused */
+  --card:rgba(255,255,255,.80); --track:rgba(120,120,128,.18);
+  /* Functional layer: Liquid Glass (regular variant) */
+  --glass:rgba(255,255,255,.78); --glass-thick:rgba(246,246,250,.84); --glass-sel:rgba(255,255,255,.72);
+  --glass-worst:#5b52d6;   /* darkest thing that can scroll under the glass; used by self-test #21 */
+  --glass-blur:24px; --glass-sat:1.6;
+  --glass-rim:linear-gradient(145deg,rgba(255,255,255,.95),rgba(255,255,255,.25) 32%,rgba(255,255,255,0) 52%,rgba(255,255,255,.6));
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.3),0 1px 2px rgba(20,20,60,.06),0 10px 30px rgba(30,30,80,.12);
+  --glass-glow:rgba(255,255,255,.55);
+  --edge:rgba(242,242,247,.45);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --rounded:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --r:12px; --hit:32px; --tabbar:0px;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000; --surface:#1c1c1e; --fill:#2c2c2e; --fill2:#3a3a3c; --sep:#38383a;
+    --ink:#f5f5f7; --ink2:#aeaeb2; --ink3:#98989f;
+    --accent:#8f8aff; --accent-fill:#5e5ce6; --on-accent:#ffffff; --accent-soft:#2b2858;
+    --break:#5ac8d6; --break-fill:#5ac8d6; --on-break:#000000; --break-soft:#123a40;
+    --danger:#ff6961; --good:#30d158; --warn:#ff9f0a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.5);
+    --fi1:rgba(94,92,230,.18);  --fi2:rgba(42,140,154,.14);
+    --ff1:rgba(94,92,230,.26);  --ff2:rgba(138,92,240,.16);
+    --fb1:rgba(31,163,181,.20); --fb2:rgba(48,179,138,.12);
+    --fp1:rgba(99,99,102,.22);  --fp2:rgba(72,72,74,.18);
+    --card:rgba(28,28,30,.74); --track:rgba(120,120,128,.32);
+    --glass:rgba(30,30,32,.88); --glass-thick:rgba(30,30,32,.9); --glass-sel:rgba(255,255,255,.13);
+    --glass-worst:#5ac8d6;
+    --glass-rim:linear-gradient(145deg,rgba(255,255,255,.38),rgba(255,255,255,.08) 32%,rgba(255,255,255,0) 52%,rgba(255,255,255,.2));
+    --glass-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.55);
+    --glass-glow:rgba(255,255,255,.14);
+    --edge:rgba(0,0,0,.35);
+  }
+}
+@media (prefers-contrast: more){
+  :root{ --ink2:#3a3a3f; --ink3:#45454b; --sep:#8e8e93; --accent:#4338c9; --accent-fill:#4338c9; --break:#0a5a68; --break-fill:#0a5a68;
+    --card:var(--surface); --glass:rgba(255,255,255,.94); --glass-thick:rgba(250,250,252,.96); }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark){
+  :root{ --ink2:#d1d1d6; --ink3:#c7c7cc; --sep:#8e8e93; --accent:#aaa6ff; --break:#7fdbe6;
+    --card:var(--surface); --glass:rgba(28,28,30,.95); --glass-thick:rgba(28,28,30,.96); }
+}
+/* Reduce Transparency: every translucent surface becomes opaque */
+@media (prefers-reduced-transparency: reduce){
+  :root{ --card:var(--surface); --glass:var(--surface); --glass-thick:var(--bg); }
+}
+@media (pointer: coarse), (max-width: 640px){ :root{ --hit:44px; } }
+@media (max-width: 640px){ :root{ --tabbar:calc(84px + env(safe-area-inset-bottom)); } }
+
+/* ============================================================
+   Base. Sizes are in rem so the browser's text-size setting scales them.
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;font-size:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.45 var(--font);-webkit-font-smoothing:antialiased;
+  padding-bottom:var(--tabbar)}
+@media (pointer: coarse){ body{font-size:1.0625rem} }
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:760px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left)) 0 max(16px,env(safe-area-inset-right))}
+.muted{color:var(--ink2)} .small{font-size:.8125rem}
+code{font-family:var(--mono);font-size:.8125rem;background:var(--fill);padding:1px 5px;border-radius:5px}
+kbd{font-family:var(--font);font-size:.75rem;font-weight:600;border:1px solid var(--sep);border-bottom-width:2px;border-radius:5px;padding:0 6px;color:var(--ink2);background:var(--surface)}
+
+/* ============================================================
+   Content layer: the color field. A fixed backdrop of two soft blobs per
+   timer state; the state is set on <html data-mode> by renderTimer().
+   Brand color lives here, where the glass picks it up (HIG › Branding),
+   so the controls themselves can stay mostly monochrome.
+   ============================================================ */
+.backdrop{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.backdrop i{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+.backdrop .idle{background:radial-gradient(85% 70% at 15% 0%,var(--fi1) 20%,transparent 85%),radial-gradient(75% 65% at 90% 100%,var(--fi2) 15%,transparent 85%)}
+.backdrop .focus{background:radial-gradient(95% 75% at 50% 0%,var(--ff1) 25%,transparent 88%),radial-gradient(70% 65% at 100% 75%,var(--ff2) 15%,transparent 85%)}
+.backdrop .break{background:radial-gradient(95% 75% at 50% 0%,var(--fb1) 25%,transparent 88%),radial-gradient(70% 65% at 0% 80%,var(--fb2) 15%,transparent 85%)}
+.backdrop .paused{background:radial-gradient(95% 75% at 50% 0%,var(--fp1) 25%,transparent 88%),radial-gradient(70% 65% at 100% 90%,var(--fp2) 15%,transparent 85%)}
+html[data-mode="idle"] .backdrop .idle,html[data-mode="focus"] .backdrop .focus,
+html[data-mode="break"] .backdrop .break,html[data-mode="paused"] .backdrop .paused{opacity:1}
+
+/* ============================================================
+   Functional layer: Liquid Glass. Only on the few controls that float
+   above the content (HIG › Materials: use it sparingly, never on content):
+   the section tabs, the timer's session switch and buttons, sheets and
+   the toast. Regular variant: blur + saturation, a translucent fill,
+   a bright rim and an inner highlight. Interactive pieces also glow
+   where the pointer is and swell slightly when pressed.
+   ============================================================ */
+.glass,.controls .btn{position:relative;isolation:isolate;background:var(--glass);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow:var(--glass-shadow)}
+.glass::after,.controls .btn::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:2;
+  background:var(--glass-rim);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.glow::before,.controls .btn::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;opacity:0;
+  background:radial-gradient(140px circle at var(--mx,50%) var(--my,0%),var(--glass-glow),transparent 65%);transition:opacity .3s}
+@media (hover:hover){ .glow:hover::before,.controls .btn:hover::before{opacity:1} }
+.controls .btn:active::before{opacity:1}
+
+/* Header: transparent, with a scroll edge effect (blur + fade) instead of a painted bar */
+header.top{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top)}
+header.top::before{content:"";position:absolute;inset:0 0 -18px;z-index:-1;pointer-events:none;background:linear-gradient(var(--edge),transparent);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  -webkit-mask:linear-gradient(#000 55%,transparent);mask:linear-gradient(#000 55%,transparent)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px}
+.brand{font-weight:700;font-size:1.0625rem;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--accent-fill);display:inline-block}
+nav.tabs{display:flex;gap:2px;padding:4px;border-radius:999px}
+nav.tabs button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:68px;min-height:44px;padding:5px 10px 4px;
+  background:none;border:0;border-radius:999px;color:var(--ink2);font-size:.6875rem;font-weight:600;letter-spacing:.01em;transition:background-color .2s,color .2s}
+nav.tabs button[aria-current="page"]{color:var(--accent);background:var(--glass-sel);box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5)}
+@media (prefers-color-scheme: dark){ nav.tabs button[aria-current="page"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.12)} }
+nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs svg .f{fill:currentColor;fill-opacity:0;stroke:none}
+nav.tabs button[aria-current="page"] svg .f{fill-opacity:.22}
+.edge-b{display:none}
+@media (max-width: 640px){
+  /* Phones: the title scrolls away and the tabs float as a glass capsule at the bottom */
+  header.top{position:relative}
+  header.top::before{display:none}
+  header .wrap{min-height:52px;justify-content:center}
+  nav.tabs{position:fixed;z-index:20;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));
+    bottom:calc(10px + env(safe-area-inset-bottom));justify-content:space-around;padding:4px}
+  nav.tabs button{flex:1;min-width:0;min-height:54px;font-size:.625rem}
+  /* scroll edge effect under the floating tab bar */
+  .edge-b{display:block;position:fixed;left:0;right:0;bottom:0;height:calc(var(--tabbar) + 24px);z-index:19;pointer-events:none;
+    background:linear-gradient(transparent,var(--edge));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    -webkit-mask:linear-gradient(transparent,#000 60%);mask:linear-gradient(transparent,#000 60%)}
+}
+@media (prefers-reduced-transparency: reduce){
+  .glass,.controls .btn,header.top::before,.edge-b{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .glass::after,.controls .btn::after,.glow::before,.controls .btn::before,header.top::before,.edge-b{display:none}
+  .glass,.controls .btn{box-shadow:0 0 0 1px var(--sep),var(--shadow)}
+  .controls .btn.primary,.controls .btn.primary:hover{background:var(--accent-fill)}
+}
+@media (prefers-contrast: more){
+  .glass,.controls .btn{box-shadow:0 0 0 1.5px var(--sep),var(--glass-shadow)}
+}
+main.wrap{padding-top:20px;padding-bottom:64px}
+
+/* ============================================================
+   Type scale (HIG text styles): Large title 2rem, Title 1.375rem,
+   Headline 1.0625rem semibold, Body 1rem, Footnote .8125rem, Caption .75rem.
+   ============================================================ */
+h1:focus{outline:none}
+h1,.title{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin:0}
+h2{font-size:1.375rem;font-weight:700;letter-spacing:-.015em;margin:0}
+h3{font-size:1.0625rem;font-weight:600;margin:0}
+.shead{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;margin:28px 4px 10px}
+.shead:first-child{margin-top:4px}
+.meta{font-size:.8125rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+.gtitle{font-size:.8125rem;color:var(--ink2);margin:24px 16px 6px}
+.gfoot{font-size:.8125rem;color:var(--ink2);margin:6px 16px 0}
+
+/* Cards (grouped inset lists) */
+.card{background:var(--card);border-radius:var(--r);overflow:hidden}
+.card.pad{padding:16px}
+.rows>*+*{border-top:.5px solid var(--sep)}
+
+/* ============================================================
+   Buttons. Same size for every option; the preferred one is set apart
+   by style (filled with the mode color), never by size. All have a
+   press state.
+   ============================================================ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:max(var(--hit),40px);padding:0 18px;
+  border:0;border-radius:999px;background:var(--fill);color:var(--ink);font-size:.9375rem;font-weight:600;line-height:1.2;
+  transition:background-color .15s,transform .1s}
+.btn:hover{background:var(--fill2)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent-fill);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.plain{background:none;color:var(--accent)}
+.btn.plain:hover{background:var(--fill)}
+.btn.danger{color:var(--danger)}
+.btn.small{min-height:var(--hit);padding:0 14px;font-size:.875rem}
+.link{background:none;border:0;padding:0;color:var(--accent);font-size:inherit;font-weight:500;min-height:24px}
+.link:hover{text-decoration:underline;text-underline-offset:3px}
+.field{width:100%;min-height:var(--hit);background:var(--fill);border:0;border-radius:10px;padding:8px 12px;color:var(--ink)}
+.field::placeholder{color:var(--ink3);opacity:1}
+.field:focus{outline:none;box-shadow:0 0 0 3px var(--accent-soft),inset 0 0 0 1.5px var(--accent)}
+select.field{appearance:none;-webkit-appearance:none;padding-right:30px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink2) 50%),linear-gradient(135deg,var(--ink2) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+
+/* Segmented control */
+.seg{display:inline-flex;gap:2px;background:var(--fill);border-radius:9px;padding:2px}
+.seg button{border:0;background:none;min-height:max(28px,calc(var(--hit) - 4px));padding:0 14px;border-radius:7px;font-size:.8125rem;font-weight:500;color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+@media (prefers-color-scheme: dark){ .seg button[aria-pressed="true"]{background:#636366} }
+.seg button:disabled{cursor:default}
+.seg button:disabled:not([aria-pressed="true"]){color:var(--ink3)}
+
+/* Switch (a checkbox with role="switch") */
+.switch{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:51px;height:31px;margin:0;border-radius:999px;
+  background:var(--fill2);transition:background-color .2s;cursor:pointer}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.switch:checked{background:var(--good)}
+.switch:checked::after{transform:translateX(20px)}
+@media (prefers-contrast: more){ .switch:not(:checked){box-shadow:inset 0 0 0 1.5px var(--ink3)} }
+
+/* Stepper */
+.stepper{display:inline-flex;align-items:center;background:var(--fill);border-radius:9px;flex:none}
+.stepper button{border:0;background:none;width:max(var(--hit),36px);height:max(var(--hit),32px);font-size:1.25rem;line-height:1;color:var(--ink);border-radius:9px}
+.stepper button:hover{background:var(--fill2)}
+.stepper button:active{transform:scale(.94)}
+.stepper input{align-self:stretch;width:3.2em;text-align:center;border:0;background:none;padding:0;font-variant-numeric:tabular-nums;font-weight:600;-moz-appearance:textfield}
+.stepper input::-webkit-inner-spin-button,.stepper input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.stepper input:focus{outline:none}
+.stepper:focus-within{box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ============================================================
+   Timer — the signature: a large rounded countdown whose color tells
+   you the mode (indigo focus, teal break). Everything around it is quiet.
+   ============================================================ */
+.timer{text-align:center;padding:8px 0 18px}
+/* the timer sits straight on the color field; its controls are the glass */
+.timer .seg.glass{background:var(--glass);border-radius:999px;padding:3px}
+.timer .seg.glass button{border-radius:999px;min-height:max(32px,calc(var(--hit) - 6px));padding:0 16px}
+.timer .seg.glass button[aria-pressed="true"]{background:var(--glass-sel);box-shadow:0 1px 3px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.5)}
+@media (prefers-color-scheme: dark){ .timer .seg.glass button[aria-pressed="true"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.12)} }
+.timer .field{background:var(--card)}
+.timer[data-kind="break"]{--accent:var(--break);--accent-fill:var(--break-fill);--on-accent:var(--on-break);--accent-soft:var(--break-soft)}
+.timer .seq{font-size:.8125rem;color:var(--ink2);margin-top:12px;font-weight:500}
+.clock{font-family:var(--rounded);font-weight:400;font-size:clamp(5rem,22vw,8.5rem);line-height:1;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:var(--accent);margin:8px 0 14px}
+.timer[data-status="idle"] .clock{color:var(--ink)}
+.timer[data-status="paused"] .clock{color:var(--ink3)}
+.progress{height:6px;max-width:420px;margin:0 auto;background:var(--track);border-radius:999px;overflow:hidden}
+.progress span{display:block;height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .25s linear}
+.ends{margin-top:10px;font-size:.875rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+.working{display:flex;align-items:center;justify-content:center;gap:10px;margin:18px auto 0;max-width:460px;font-size:.875rem;color:var(--ink2)}
+.working select{flex:1;min-width:0;text-align:left;color:var(--ink);font-weight:500}
+.controls{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+.controls .btn{min-width:112px;min-height:max(var(--hit),46px);color:var(--ink);transition:transform .35s cubic-bezier(.3,1.5,.5,1),filter .2s}
+.controls .btn.danger{color:var(--danger)}
+.controls .btn:hover{background:var(--glass)}
+.controls .btn:active{transform:scale(1.05)}   /* glass swells under your finger */
+/* the one primary action per view gets the tint (HIG › Color: color the background, not the label) */
+.controls .btn.primary{min-width:136px;color:var(--on-accent);background:color-mix(in srgb,var(--accent-fill) 90%,transparent)}
+.controls .btn.primary:hover{background:color-mix(in srgb,var(--accent-fill) 90%,transparent);filter:brightness(1.07)}
+@media (max-width:480px){ .controls{flex-wrap:nowrap} .controls .btn,.controls .btn.primary{flex:1 1 0;min-width:0;padding:0 10px} }
+.distract{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-size:.875rem}
+.distract form{flex-basis:100%;max-width:460px;margin:4px auto 0}
+.rate{margin:16px auto 0;max-width:520px;padding:14px;background:var(--card);border-radius:var(--r);text-align:left}
+.rate p{margin:0 0 10px;font-size:.9375rem;font-weight:500}
+.rate .opts{display:flex;gap:8px;margin-bottom:10px}
+.rate .opts .btn{flex:1;background:var(--fill);padding:0 8px}
+.rate .opts .btn:hover{background:var(--accent-soft)}
+.rate .row{display:flex;gap:12px;align-items:center}
+.rate .field{background:var(--surface)}
+
+/* Day strip */
+.daycard{padding:14px 16px 16px}
+.daycard .meta{margin-bottom:10px;display:block}
+.strip{display:flex;flex-wrap:wrap;gap:6px}
+.blk{width:24px;height:24px;border-radius:7px;background:var(--fill);position:relative;overflow:hidden}
+.blk i{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+.blk.live{box-shadow:inset 0 0 0 2px var(--accent)}
+.blk.live i{opacity:.35}
+
+/* Plan */
+.cap{position:relative;margin:0 4px 12px}
+.capbar{height:6px;background:var(--fill2);border-radius:999px;overflow:hidden;display:flex}
+.capbar .d{background:var(--accent)}
+.capbar .p{background:repeating-linear-gradient(-45deg,var(--accent) 0 2px,transparent 2px 5px);opacity:.55}
+.cap .tgt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
+.quick{display:flex;align-items:center;gap:10px;padding:4px 12px 4px 14px;min-height:52px}
+.quick .plus{width:24px;height:24px;flex:none;border-radius:50%;background:var(--accent-fill);color:var(--on-accent);display:grid;place-items:center;font-size:1.125rem;font-weight:600;line-height:1}
+.quick input{flex:1;min-width:0;border:0;background:none;padding:10px 0;color:var(--ink)}
+.quick input::placeholder{color:var(--ink3);opacity:1}
+.quick input:focus{outline:none}
+.quick:focus-within{box-shadow:inset 0 0 0 2px var(--accent-soft)}
+.tasks{list-style:none;margin:0;padding:0}
+.task{display:flex;align-items:center;gap:6px;padding:4px 8px 4px 6px;border-top:.5px solid var(--sep);min-height:56px}
+.task.current{box-shadow:inset 3px 0 0 var(--accent)}
+.check{width:var(--hit);height:var(--hit);min-width:32px;min-height:32px;flex:none;border:0;background:none;padding:0;display:grid;place-items:center}
+.check::before{content:"";width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink3);transition:background-color .15s}
+.check:hover::before{box-shadow:inset 0 0 0 1.5px var(--good)}
+.check[aria-pressed="true"]::before{background:var(--good);box-shadow:none}
+.check[aria-pressed="true"]::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:10px;border:solid var(--surface);border-width:0 2px 2px 0;transform:translate(-50%,-62%) rotate(45deg)}
+.check{position:relative}
+.tbody{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 4px;border-radius:8px;color:var(--ink)}
+.tbody:hover .ttitle{color:var(--accent)}
+.ttitle{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:1rem}
+.task.current .ttitle{font-weight:600}
+.is-done .ttitle{text-decoration:line-through;color:var(--ink2)}
+.tmeta{display:flex;align-items:center;gap:10px;font-size:.8125rem;color:var(--ink2);margin-top:2px;flex-wrap:wrap}
+.num{font-variant-numeric:tabular-nums;font-weight:500}
+.mini{width:56px;height:4px;background:var(--fill2);border-radius:999px;overflow:hidden;display:inline-block}
+.mini i{display:block;height:100%;background:var(--good)}
+.mini.over i{background:var(--warn)}
+.now{color:var(--accent);font-weight:600}
+.tact{display:flex;gap:2px;flex:none;align-items:center}
+.tact button{background:none;border:0;color:var(--accent);font-size:.875rem;font-weight:500;min-height:var(--hit);min-width:var(--hit);padding:0 8px;border-radius:8px;display:grid;place-items:center}
+.tact button:hover{background:var(--fill)}
+.tact button:active{transform:scale(.94)}
+.tact svg{width:22px;height:22px}
+@media (max-width:480px){.ttitle{white-space:normal;overflow-wrap:anywhere}}
+.empty{padding:16px;color:var(--ink2);font-size:.9375rem;list-style:none;border-top:.5px solid var(--sep)}
+.task.dragging{opacity:.4}
+.task.drop-before{box-shadow:inset 0 3px 0 var(--accent)}
+.task.drop-after{box-shadow:inset 0 -3px 0 var(--accent)}
+details.sub{margin-top:12px;background:var(--card);border-radius:var(--r);overflow:hidden}
+details.sub>summary{cursor:pointer;color:var(--ink);font-weight:600;font-size:1rem;list-style:none;padding:0 16px;min-height:48px;display:flex;align-items:center;gap:6px;user-select:none}
+details.sub>summary::-webkit-details-marker{display:none}
+details.sub>summary span{color:var(--ink2);font-weight:400}
+details.sub>summary::after{content:"";margin-left:auto;width:8px;height:8px;border:solid var(--ink3);border-width:0 2px 2px 0;transform:rotate(-45deg);transition:transform .2s}
+details.sub[open]>summary::after{transform:rotate(45deg)}
+details.sub .quick{border-top:.5px solid var(--sep)}
+.keys{font-size:.8125rem;color:var(--ink2);margin:24px 4px 0;line-height:2}
+@media (hover:none) and (pointer:coarse){ .keys{display:none} }   /* no keyboard, no shortcut hints */
+
+/* History */
+.logform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:16px;margin:0 0 12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8125rem;color:var(--ink2);font-weight:500}
+.logform .actions{grid-column:1/-1}
+.hday{margin-bottom:12px;padding:4px 16px 8px}
+.hday h3{font-size:1rem;margin:10px 0 6px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hday h3 span{font-weight:400;font-size:.8125rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+.hrow{display:grid;grid-template-columns:96px minmax(0,1fr) 48px 92px 72px var(--hit);gap:10px;align-items:center;font-size:.875rem;min-height:var(--hit);border-top:.5px solid var(--sep);padding:2px 0}
+.htime,.hdur{font-variant-numeric:tabular-nums;color:var(--ink2);font-size:.8125rem}
+.hdur{text-align:right}
+.htask{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hout,.hrate{font-size:.8125rem;color:var(--ink2)}
+.o-early{color:var(--warn)} .o-abandoned{color:var(--ink2);text-decoration:line-through}
+.x{background:none;border:0;color:var(--ink2);font-size:1.25rem;line-height:1;width:var(--hit);height:var(--hit);border-radius:8px;justify-self:end}
+.x:hover{color:var(--danger);background:var(--fill)}
+.hnote{font-size:.8125rem;color:var(--ink2);padding:0 0 8px 106px}
+.hint{font-size:.8125rem;color:var(--ink2);margin:0 0 8px}
+@media (max-width:560px){
+  .hrow{grid-template-columns:86px minmax(0,1fr) 40px var(--hit)}
+  .hout,.hrate{display:none}
+  .hnote{padding-left:96px}
+}
+
+/* Insights */
+.figs{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:12px}
+.fig{padding:14px 16px}
+.fig+.fig{border-left:.5px solid var(--sep)}
+.fig b{display:block;font-family:var(--rounded);font-weight:600;font-size:1.625rem;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}
+.fig span{font-size:.8125rem;color:var(--ink2)}
+@media (max-width:560px){.figs{grid-template-columns:repeat(2,1fr)} .fig:nth-child(3){border-left:0} .fig:nth-child(n+3){border-top:.5px solid var(--sep)}}
+.isec{padding:16px;margin-bottom:12px}
+.isec h3{margin:0 0 6px}
+.lead{font-size:.9375rem;margin:0 0 14px;color:var(--ink2)}
+.lead b{color:var(--ink)}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart text{fill:var(--ink2);font:.6875rem var(--font)}
+.chart .gl{stroke:var(--sep);stroke-width:1}
+.chart .tg{stroke:var(--ink2);stroke-width:1;stroke-dasharray:3 3}
+.chart .tl{fill:var(--ink2)}
+.chart .cb{fill:var(--accent)}
+.heat{display:grid;grid-template-columns:34px repeat(24,minmax(0,1fr));gap:2px;font-size:.6875rem;color:var(--ink2)}
+.heat .c{aspect-ratio:1;background:var(--fill);border-radius:3px;position:relative;overflow:hidden}
+.heat .c i{position:absolute;inset:0;background:var(--accent)}
+.heat .rl{align-self:center}
+.heat .hl{text-align:left;white-space:nowrap}
+table.t{width:100%;border-collapse:collapse;font-size:.875rem;margin-top:6px}
+.t th{text-align:left;font-weight:600;color:var(--ink2);font-size:.8125rem;border-bottom:.5px solid var(--sep);padding:6px 10px 6px 0}
+.t td{padding:8px 10px 8px 0;border-bottom:.5px solid var(--sep)}
+.t tr:last-child td{border-bottom:0}
+.t .n{font-variant-numeric:tabular-nums;text-align:right}
+.t td:first-child{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbars{display:grid;grid-template-columns:84px 1fr 32px;gap:8px 10px;align-items:center;font-size:.875rem}
+.rbars .rb{height:8px;background:var(--fill);border-radius:999px;overflow:hidden}
+.rbars .rb i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.rbars .n{font-variant-numeric:tabular-nums;color:var(--ink2);text-align:right}
+.foot{font-size:.8125rem;color:var(--ink2);margin:6px 16px 0}
+.emptybig{color:var(--ink2);padding:24px 16px;margin:0;max-width:46ch}
+
+/* Settings — grouped lists */
+.srow{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 16px;min-height:52px;font-size:1rem}
+.srow>span:first-child{min-width:0}
+.srow small{display:block;color:var(--ink2);font-size:.8125rem;margin-top:1px}
+.srow select.field{width:auto;min-width:96px;flex:none}
+.inline{display:flex;gap:8px;align-items:center;flex:none}
+details.paste{padding:12px 16px}
+details.paste summary{cursor:pointer;color:var(--accent);font-weight:500;min-height:28px}
+details.paste textarea{font-family:var(--mono);font-size:.8125rem;margin:8px 0;resize:vertical}
+.tests{list-style:none;padding:0 16px;margin:0;font-size:.875rem}
+.tests:empty{display:none}
+.tests li{padding:6px 0;display:flex;gap:10px;border-top:.5px solid var(--sep)}
+.tests .ok{color:var(--good);font-weight:600;flex:none;width:38px}
+.tests .bad{color:var(--danger);font-weight:600;flex:none;width:38px}
+.bootfail{position:fixed;inset:auto 16px 16px 16px;z-index:99;max-width:560px;margin:0 auto;padding:14px 16px;border-radius:var(--r);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);font-size:.9375rem}
+html.ready .bootfail{display:none}
+.version{font-size:.8125rem;color:var(--ink2);margin:24px 16px 0;text-align:center}
+
+/* ============================================================
+   Sheets (dialogs). Cancel leading, title centered, Save trailing.
+   On phones they rise from the bottom edge.
+   ============================================================ */
+dialog{border:0;border-radius:22px;color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px))}
+dialog.glass{position:fixed;background:var(--glass-thick);--glass-blur:40px}   /* text-heavy, so the thicker regular variant */
+dialog::backdrop{background:rgba(0,0,0,.25)}
+dialog[open]{animation:sheetIn .22s ease-out}
+@keyframes sheetIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.navbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:8px 8px;min-height:52px;border-bottom:.5px solid var(--sep)}
+.navbar h3{text-align:center;font-size:1.0625rem}
+.navbar .nb{background:none;border:0;color:var(--accent);font-size:1rem;min-height:var(--hit);padding:0 10px;border-radius:8px;justify-self:start}
+.navbar .nb:hover{background:var(--fill)}
+.navbar .nb.end{justify-self:end;font-weight:700}
+.dbody{padding:16px;display:flex;flex-direction:column;gap:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dbody .field{background:var(--surface)}
+@media (prefers-color-scheme: dark){ .dbody .field,.destructive{background:var(--fill)} .destructive:hover{background:var(--fill2)} }
+.destructive{width:100%;min-height:max(var(--hit),44px);background:var(--surface);color:var(--danger);border:0;border-radius:10px;font-weight:600}
+.destructive:hover{background:var(--fill)}
+.actions{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.actions .sp{flex:1}
+.keylist{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:0;font-size:.9375rem}
+.keylist dt{text-align:right;white-space:nowrap} .keylist dd{margin:0;color:var(--ink2)}
+@media (max-width:640px){
+  dialog{width:calc(100% - 16px);max-width:100%;margin:auto 8px 8px;border-radius:28px;max-height:90vh;padding-bottom:env(safe-area-inset-bottom)}
+  @keyframes sheetIn{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:calc(20px + var(--tabbar));transform:translate(-50%,12px);color:var(--ink);
+  padding:10px 10px 10px 18px;min-height:44px;border-radius:999px;font-size:.9375rem;display:flex;gap:14px;align-items:center;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100vw - 32px);z-index:50}
+.toast.glass{position:fixed}
+.toast:not(:has(button)){padding-right:18px}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:var(--fill);border:0;color:var(--accent);font-weight:600;padding:0 14px;min-height:32px;border-radius:999px;flex:none}
+.toast button:hover{background:var(--fill2)}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  .btn:active,.tact button:active,.stepper button:active,.controls .btn:active{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"><i class="idle"></i><i class="focus"></i><i class="break"></i><i class="paused"></i></div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><i aria-hidden="true"></i>FocusDeck</div>
+    <nav class="tabs glass glow" aria-label="Sections">
+      <button data-view="today" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="12" cy="13.5" r="7.5"/><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.6M9.8 3.2h4.4M12 3.2V6M18.2 6.6l1.3-1.3"/></svg>
+        <span>Today</span></button>
+      <button data-view="history">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="12" cy="12" r="8"/><path d="M4.3 13.5A8 8 0 1 0 6.4 6.4L4 8.8"/><path d="M4 4.6v4.2h4.2"/><path d="M12 8v4.3l2.8 1.8"/></svg>
+        <span>History</span></button>
+      <button data-view="insights">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect class="f" x="4" y="13" width="4" height="7" rx="1"/><rect class="f" x="10" y="8" width="4" height="12" rx="1"/><rect class="f" x="16" y="4" width="4" height="16" rx="1"/><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="16" y="4" width="4" height="16" rx="1"/></svg>
+        <span>Insights</span></button>
+      <button data-view="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="12" cy="12" r="6.6"/><circle cx="12" cy="12" r="8.3" stroke-width="2.8" stroke-dasharray="2.35 2" stroke-linecap="butt"/><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.4"/></svg>
+        <span>Settings</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ======================= TODAY ======================= -->
+<section id="view-today">
+  <h1 class="sr" tabindex="-1">Today</h1>
+  <section class="timer" id="timer" data-kind="focus" data-status="idle" aria-label="Timer">
+    <div class="seg glass glow" role="group" aria-label="Session type">
+      <button data-act="kind" data-kind="focus" aria-pressed="true">Focus</button>
+      <button data-act="kind" data-kind="short" aria-pressed="false">Short Break</button>
+      <button data-act="kind" data-kind="long" aria-pressed="false">Long Break</button>
+    </div>
+    <div class="seq" id="seq"></div>
+    <div class="clock" id="clock" role="timer" aria-live="off">25:00</div>
+    <div class="progress" aria-hidden="true"><span id="progressFill"></span></div>
+    <div class="ends" id="ends"></div>
+    <label class="working" id="workingRow"><span>Working on</span> <select class="field" id="taskPick"></select></label>
+    <div class="controls" id="controls"></div>
+    <div class="distract" id="distract" hidden>
+      <button class="link" data-act="distract">Note a distraction</button> <kbd>D</kbd>
+      <span class="muted" id="distractCount"></span>
+      <form id="distractForm" hidden><input class="field" id="distractInput" maxlength="120" autocomplete="off" aria-label="Distraction" placeholder="What pulled you away? Return saves, Esc cancels"></form>
+    </div>
+    <form class="rate" id="rate" hidden>
+      <p id="rateLabel">How was that session?</p>
+      <div class="opts">
+        <button type="button" class="btn small" data-act="rate" data-v="1">Scattered</button>
+        <button type="button" class="btn small" data-act="rate" data-v="2">Steady</button>
+        <button type="button" class="btn small" data-act="rate" data-v="3">Deep</button>
+      </div>
+      <div class="row">
+        <input class="field" id="rateNote" maxlength="200" autocomplete="off" aria-label="Note" placeholder="Add a note (optional)">
+        <button type="button" class="link" data-act="rateSkip">Skip</button>
+      </div>
+    </form>
+  </section>
+  <div class="sr" id="announce" aria-live="polite"></div>
+
+  <div class="shead"><h2>Today</h2></div>
+  <div class="card daycard">
+    <span class="meta" id="dayMeta"></span>
+    <div class="strip" id="strip" role="img"></div>
+  </div>
+
+  <div class="shead"><h2>Plan</h2><span class="meta" id="capText"></span></div>
+  <div class="cap" id="cap"></div>
+  <div class="card">
+    <form class="quick" data-plan="today"><span class="plus" aria-hidden="true">+</span><input id="quickToday" maxlength="160" autocomplete="off" aria-label="New task for today" placeholder="New task"></form>
+    <ul class="tasks" id="listToday"></ul>
+  </div>
+  <details class="sub" id="laterBox">
+    <summary>Later <span id="laterCount"></span></summary>
+    <form class="quick" data-plan="later"><span class="plus" aria-hidden="true">+</span><input maxlength="160" autocomplete="off" aria-label="New task for later" placeholder="New task for later"></form>
+    <ul class="tasks" id="listLater"></ul>
+  </details>
+  <details class="sub" id="doneBox">
+    <summary>Done <span id="doneCount"></span></summary>
+    <ul class="tasks" id="listDone"></ul>
+  </details>
+  <p class="keys"><kbd>Space</kbd> start or pause · <kbd>N</kbd> new task · <kbd>D</kbd> note a distraction · <kbd id="undoKey">Ctrl Z</kbd> undo · <button class="link" data-act="shortcuts">All shortcuts</button></p>
+</section>
+
+<!-- ======================= HISTORY ======================= -->
+<section id="view-history" hidden>
+  <div class="shead"><h1 tabindex="-1">History</h1><button class="btn small" data-act="openLog">Log a Missed Session…</button></div>
+  <form class="logform card" id="logForm" hidden>
+    <label class="f">Date<input class="field" type="date" name="date" required></label>
+    <label class="f">Started at<input class="field" type="time" name="time" required></label>
+    <label class="f">Sessions<input class="field" type="number" name="count" min="1" max="12" value="1" required></label>
+    <label class="f">Task<select class="field" name="task"></select></label>
+    <div class="actions"><span class="muted small" id="logHint"></span><span class="sp"></span><button type="button" class="btn small" data-act="cancelLog">Cancel</button><button class="btn small primary">Add to History</button></div>
+  </form>
+  <div id="histList"></div>
+  <p style="text-align:center"><button class="btn small" id="histMore" data-act="histMore" hidden>Show Older Days</button></p>
+</section>
+
+<!-- ======================= INSIGHTS ======================= -->
+<section id="view-insights" hidden>
+  <div class="shead"><h1 tabindex="-1">Insights</h1>
+    <div class="seg" role="group" aria-label="Range">
+      <button data-act="range" data-r="7">7 Days</button>
+      <button data-act="range" data-r="30">30 Days</button>
+      <button data-act="range" data-r="90">90 Days</button>
+    </div>
+  </div>
+  <div id="insightsBody"></div>
+</section>
+
+<!-- ======================= SETTINGS ======================= -->
+<section id="view-settings" hidden>
+  <div class="shead"><h1 tabindex="-1">Settings</h1></div>
+
+  <h2 class="gtitle">Timer</h2>
+  <div class="card rows">
+    <div class="srow"><span id="l-focus">Focus length <small>minutes</small></span>
+      <span class="stepper"><button type="button" data-act="step" data-d="-1" aria-label="Shorter">−</button><input type="number" data-set="focusMin" min="1" max="120" aria-labelledby="l-focus"><button type="button" data-act="step" data-d="1" aria-label="Longer">+</button></span></div>
+    <div class="srow"><span id="l-short">Short break <small>minutes</small></span>
+      <span class="stepper"><button type="button" data-act="step" data-d="-1" aria-label="Shorter">−</button><input type="number" data-set="shortMin" min="1" max="60" aria-labelledby="l-short"><button type="button" data-act="step" data-d="1" aria-label="Longer">+</button></span></div>
+    <div class="srow"><span id="l-long">Long break <small>minutes</small></span>
+      <span class="stepper"><button type="button" data-act="step" data-d="-1" aria-label="Shorter">−</button><input type="number" data-set="longMin" min="1" max="90" aria-labelledby="l-long"><button type="button" data-act="step" data-d="1" aria-label="Longer">+</button></span></div>
+    <div class="srow"><span id="l-every">Long break after <small>focus sessions</small></span>
+      <span class="stepper"><button type="button" data-act="step" data-d="-1" aria-label="Fewer">−</button><input type="number" data-set="longEvery" min="2" max="12" aria-labelledby="l-every"><button type="button" data-act="step" data-d="1" aria-label="More">+</button></span></div>
+    <div class="srow"><span id="l-target">Daily target <small>focus sessions, for the day strip and plan</small></span>
+      <span class="stepper"><button type="button" data-act="step" data-d="-1" aria-label="Fewer">−</button><input type="number" data-set="dailyTarget" min="1" max="30" aria-labelledby="l-target"><button type="button" data-act="step" data-d="1" aria-label="More">+</button></span></div>
+    <label class="srow"><span>Day starts at <small>sessions before this count toward the previous day</small></span>
+      <select class="field" data-set="dayStartHour"><option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option></select></label>
+  </div>
+
+  <h2 class="gtitle">Flow</h2>
+  <div class="card rows">
+    <label class="srow"><span>Start breaks automatically</span><input type="checkbox" role="switch" class="switch" data-set="autoBreak"></label>
+    <label class="srow"><span>Start the next focus session after a break</span><input type="checkbox" role="switch" class="switch" data-set="autoFocus"></label>
+  </div>
+
+  <h2 class="gtitle">Alerts</h2>
+  <div class="card rows">
+    <div class="srow"><span id="l-sound">Sound when a session ends</span>
+      <span class="inline"><select class="field" data-set="sound" aria-labelledby="l-sound"><option value="chime">Chime</option><option value="soft">Soft</option><option value="off">Off</option></select><button class="btn small" data-act="testSound">Play</button></span></div>
+    <label class="srow"><span>Notify when the tab is in the background <small id="notifStatus"></small></span><input type="checkbox" role="switch" class="switch" data-set="notify"></label>
+  </div>
+  <p class="gfoot">Light and dark appearance follow your system setting.</p>
+
+  <h2 class="gtitle">Your data</h2>
+  <div class="card rows">
+    <div class="srow"><span>Backup <small>tasks, sessions and settings as JSON</small></span><span class="inline"><button class="btn small" data-act="exportJson">Export</button><button class="btn small" data-act="importJson">Restore…</button></span></div>
+    <div class="srow"><span>Sessions as CSV <small>for Excel or pandas</small></span><button class="btn small" data-act="exportCsv">Export</button></div>
+    <div class="srow"><span>Import from the old FocusDeck <small>reads v3/v4 data from this browser</small></span><button class="btn small" data-act="importLegacy">Import</button></div>
+    <details class="paste"><summary>Old version used in a different browser? Paste its data</summary>
+      <p class="muted small">Open the old FocusDeck file, press F12, go to Console, run <code>copy(localStorage.getItem('focusdeck4'))</code>, then paste below.</p>
+      <textarea class="field" id="pasteBox" rows="4" aria-label="Old FocusDeck data" placeholder="Paste here"></textarea>
+      <button class="btn small" data-act="importPaste">Import Pasted Data</button>
+    </details>
+    <div class="srow"><span>Erase everything</span><button class="btn small danger" data-act="eraseAll">Erase…</button></div>
+  </div>
+  <p class="gfoot">Everything is stored in this browser only. Clearing site data erases it, so export a backup now and then.</p>
+  <input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+  <h2 class="gtitle">Self-check</h2>
+  <div class="card">
+    <div class="srow"><span>Run the built-in tests <small>timer, streak, stats, migration, input cleaning and contrast</small></span><button class="btn small" data-act="runTests">Run</button></div>
+    <ul class="tests" id="testOut"></ul>
+  </div>
+  <p class="version" id="versionLine"></p>
+</section>
+</main>
+
+<dialog class="glass" id="taskDialog" aria-labelledby="taskDialogTitle">
+  <form id="taskForm">
+    <div class="navbar"><button type="button" class="nb" data-act="closeDialog">Cancel</button><h3 id="taskDialogTitle">Edit Task</h3><button class="nb end">Save</button></div>
+    <div class="dbody">
+      <label class="f">Title<input class="field" name="title" required maxlength="120" autocomplete="off"></label>
+      <div class="row2">
+        <label class="f">Tag<input class="field" name="tag" list="tagList" maxlength="24" autocomplete="off"></label>
+        <label class="f">Estimate (sessions)<input class="field" name="estimate" type="number" min="1" max="60"></label>
+      </div>
+      <label class="f">Plan<select class="field" name="plan"><option value="today">Today</option><option value="later">Later</option></select></label>
+      <p class="hint" id="taskInfo"></p>
+      <button type="button" class="destructive" data-act="deleteTask">Delete Task</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="tagList"></datalist>
+
+<dialog class="glass" id="keysDialog" aria-labelledby="keysTitle">
+  <div class="navbar"><span></span><h3 id="keysTitle">Keyboard Shortcuts</h3><button class="nb end" data-act="closeDialog">Done</button></div>
+  <div class="dbody">
+    <p class="hint" style="margin:0">On the Today tab, when you’re not typing in a field.</p>
+    <dl class="keylist">
+      <dt><kbd>Space</kbd></dt><dd>Start, pause or resume</dd>
+      <dt><kbd>N</kbd></dt><dd>Add a task for today</dd>
+      <dt><kbd>D</kbd></dt><dd>Note a distraction during focus</dd>
+      <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>Rate the session that just ended</dd>
+      <dt><kbd class="mod">Ctrl</kbd> <kbd>Z</kbd></dt><dd>Undo the last change (any tab)</dd>
+      <dt><kbd>Shift</kbd> <kbd class="mod">Ctrl</kbd> <kbd>Z</kbd></dt><dd>Redo</dd>
+      <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close or cancel</dd>
+    </dl>
+  </div>
+</dialog>
+
+<div class="toast glass" id="toast" role="status" aria-live="polite"></div>
+<div class="edge-b" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   1. Utilities
+   ============================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const clamp = (v, lo, hi, fallback) => Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+const HOUR = 3600e3;
+
+function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+/** Calendar day a timestamp belongs to, shifted so the day starts at `startHour`. */
+function dayKey(ms, startHour = 0) { return ymd(new Date(ms - startHour * HOUR)); }
+function keyToDate(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
+function addDays(k, n) { const d = keyToDate(k); d.setDate(d.getDate() + n); return ymd(d); }
+function fmtClock(sec) { sec = Math.max(0, Math.ceil(sec)); return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60); }
+function fmtDur(sec) { const m = Math.round(sec / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + pad(m % 60) + 'm'; }
+function fmtHours(sec) { return sec < 3600 ? Math.round(sec / 60) + 'm' : (sec / 3600).toFixed(1) + 'h'; }
+function fmtTime(ms) { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function fmtUnits(x) { return String(Math.round(x * 10) / 10); }
+function fmtDayLabel(k, todayK) {
+  if (k === todayK) return 'Today';
+  if (k === addDays(todayK, -1)) return 'Yesterday';
+  return keyToDate(k).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+const RATING = { 1: 'Scattered', 2: 'Steady', 3: 'Deep' };
+const OUTCOME = { completed: 'Full', early: 'Ended early', abandoned: 'Discarded' };
+
+/* ============================================================
+   2. Core — pure logic. No DOM, no storage. Covered by the self-check.
+   A session: { id, kind:'focus'|'short'|'long', taskId, taskTitle, start, end,
+                plannedSec, actualSec, outcome:'completed'|'early'|'abandoned',
+                rating, distractions:[{at,text}], note, imported?, manual? }
+   ============================================================ */
+const Core = {
+  /** How much of one "session unit" this counts for. */
+  credit(s) {
+    if (s.kind !== 'focus') return 0;
+    if (s.outcome === 'completed') return 1;
+    if (s.outcome === 'early') return Math.min(1, s.actualSec / s.plannedSec);
+    return 0;
+  },
+  elapsed(t, nowMs) {
+    return t.elapsedBefore + (t.status === 'running' && t.segStart ? (nowMs - t.segStart) / 1000 : 0);
+  },
+  activeDays(sessions, startHour) {
+    const set = new Set();
+    for (const s of sessions) if (Core.credit(s) > 0) set.add(dayKey(s.start, startHour));
+    return set;
+  },
+  /** Consecutive active days ending today — or yesterday, if today has nothing yet. */
+  streak(sessions, todayK, startHour) {
+    const days = Core.activeDays(sessions, startHour);
+    let k = days.has(todayK) ? todayK : addDays(todayK, -1), n = 0;
+    while (days.has(k)) { n++; k = addDays(k, -1); }
+    return { n, todayDone: days.has(todayK) };
+  },
+  /** Split a time span into per-hour pieces: [{dow (0 = Mon), hour, sec}]. */
+  splitByHour(start, end) {
+    const out = [];
+    let t = start;
+    while (t < end) {
+      const d = new Date(t);
+      const next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime();
+      const stop = Math.min(end, next);
+      out.push({ dow: (d.getDay() + 6) % 7, hour: d.getHours(), sec: (stop - t) / 1000 });
+      t = stop;
+    }
+    return out;
+  },
+  taskProgress(sessions, taskId) {
+    let p = 0;
+    for (const s of sessions) if (s.taskId === taskId) p += Core.credit(s);
+    return p;
+  },
+  /** Long break after every `longEvery`-th credited focus session since the last long break. */
+  nextBreak(daySessions, longEvery) {
+    let count = 0;
+    for (const s of daySessions) {
+      if (s.kind === 'long') count = 0;
+      else if (Core.credit(s) > 0) count++;
+    }
+    return count > 0 && count % longEvery === 0 ? 'long' : 'short';
+  },
+  /** "Stats past paper #stats ~6" → { title, tag: 'stats', estimate: 6 } */
+  parseQuick(raw) {
+    let tag = '', estimate = null;
+    let t = ' ' + raw + ' ';
+    t = t.replace(/\s#([\p{L}\p{N}_-]{1,24})(?=\s)/u, (m, g) => { tag = g; return ' '; });
+    t = t.replace(/\s~(\d{1,2})(?=\s)/, (m, g) => { estimate = Number(g) || null; return ' '; });
+    return { title: t.replace(/\s+/g, ' ').trim(), tag, estimate };
+  },
+  median(a) {
+    const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  },
+  /** Compare estimates with what finished tasks actually took. */
+  estimateStats(tasks, sessions) {
+    const rows = [];
+    for (const t of tasks) {
+      if (t.status !== 'done' || !t.estimate) continue;
+      const actual = Core.taskProgress(sessions, t.id);
+      if (actual <= 0) continue;
+      rows.push({ id: t.id, title: t.title, tag: t.tag || 'untagged', estimate: t.estimate, actual, ratio: actual / t.estimate, doneAt: t.doneAt || 0 });
+    }
+    const byTag = {};
+    rows.forEach(r => (byTag[r.tag] = byTag[r.tag] || []).push(r.ratio));
+    const tags = Object.entries(byTag).map(([tag, rs]) => ({ tag, n: rs.length, ratio: Core.median(rs) })).sort((a, b) => b.n - a.n);
+    return { rows, overall: rows.length ? Core.median(rows.map(r => r.ratio)) : null, tags };
+  },
+  /** Share of focus sessions run to the end (imported ones excluded — their outcome is unknown). */
+  completion(sessions) {
+    const f = sessions.filter(s => s.kind === 'focus' && !s.imported);
+    return f.length ? f.filter(s => s.outcome === 'completed').length / f.length : null;
+  },
+  /** Convert data from FocusDeck v3/v4 (counters, no timestamps) into tasks + a session log. */
+  migrateLegacy(d, nowMs) {
+    const old = d.settings || {};
+    const settings = {};
+    if (old.pomo) settings.focusMin = old.pomo;
+    if (old.short) settings.shortMin = old.short;
+    if (old.long) settings.longMin = old.long;
+    if (old.longAfter) settings.longEvery = old.longAfter;
+    const focusMin = settings.focusMin || 25;
+    const rank = { high: 0, med: 1, low: 2 };
+    const oldTasks = (Array.isArray(d.tasks) ? d.tasks : []).slice()
+      .sort((a, b) => (!!a.done - !!b.done) || ((rank[a.priority] ?? 1) - (rank[b.priority] ?? 1)));
+    const idMap = {};
+    const tasks = oldTasks.map((t, i) => {
+      const id = 'm' + i + '-' + uid();
+      idMap[t.id] = id;
+      const created = Date.parse(t.created) || nowMs;
+      return { id, title: String(t.name || 'Untitled').slice(0, 120), tag: t.tag || '', estimate: Number(t.est) || null,
+        status: t.done ? 'done' : 'open', today: !t.done, order: i, createdAt: created, doneAt: t.done ? created : null };
+    });
+    const sessions = [], counted = {};
+    const make = (start, taskId) => ({ id: uid(), kind: 'focus', taskId, taskTitle: '', start, end: start + focusMin * 60e3,
+      plannedSec: focusMin * 60, actualSec: focusMin * 60, outcome: 'completed', rating: null, distractions: [], note: '', imported: true });
+    for (const day of (Array.isArray(d.history) ? d.history : [])) {
+      if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day.date)) continue;
+      const base = keyToDate(day.date); base.setHours(9, 0, 0, 0);
+      const list = Array.isArray(day.sessions) ? day.sessions : [];
+      const total = Math.max(day.pomos || 0, list.length);
+      for (let j = 0; j < total; j++) {
+        const taskId = (list[j] && idMap[list[j].taskId]) || null;
+        if (taskId) counted[taskId] = (counted[taskId] || 0) + 1;
+        sessions.push(make(base.getTime() + j * (focusMin + 5) * 60e3, taskId));
+      }
+    }
+    // Pomos added by hand on a task (old +/− buttons) never reached history: keep them so progress matches.
+    for (const t of oldTasks) {
+      const id = idMap[t.id], gap = (t.pomosDone || 0) - (counted[id] || 0);
+      const base = new Date(Date.parse(t.created) || nowMs); base.setHours(20, 0, 0, 0);
+      for (let k = 0; k < gap; k++) sessions.push(make(base.getTime() + k * (focusMin + 5) * 60e3, id));
+    }
+    for (const s of sessions) { const t = tasks.find(x => x.id === s.taskId); if (t) s.taskTitle = t.title; }
+    return { tasks, sessions, settings };
+  },
+};
+
+/* ============================================================
+   3. State & storage
+   ============================================================ */
+const APP_VERSION = '5.4';   // bump on every release; see CHANGELOG.md
+const KEY = 'focusdeck5';
+const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
+  sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
+let S;                      // the whole app state
+let currentView = 'today';
+let attention = '';         // tab-title nudge after a session ends in the background
+let editId = null, histDays = 14, insightRange = 30, lastDay = '';
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+const durFor = (kind, s) => (kind === 'focus' ? s.focusMin : kind === 'short' ? s.shortMin : s.longMin) * 60;
+function idleTimer(kind, settings) {
+  return { kind, status: 'idle', plannedSec: durFor(kind, settings), elapsedBefore: 0, segStart: null, sessionStart: null, distractions: [] };
+}
+function freshState() {
+  return { version: 5, settings: { ...DEFAULT_SETTINGS }, tasks: [], sessions: [], timer: idleTimer('focus', DEFAULT_SETTINGS), currentTaskId: null, pendingRating: null };
+}
+/** Clean anything loaded from storage or an imported file, so a crafted backup can't inject HTML. */
+const safeId = v => String(v ?? '').replace(/[^\w-]/g, '').slice(0, 64) || uid();
+const num = (v, fallback = null) => Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : fallback;
+/** v5.3: the saved timer is cleaned like everything else — known kind and status, real numbers only. */
+function cleanTimer(t, settings) {
+  if (!t || typeof t !== 'object' || !['focus', 'short', 'long'].includes(t.kind)) return idleTimer('focus', settings);
+  const out = idleTimer(t.kind, settings);
+  out.status = ['idle', 'running', 'paused'].includes(t.status) ? t.status : 'idle';
+  if (out.status === 'idle') return out;
+  out.plannedSec = num(t.plannedSec) > 0 ? num(t.plannedSec) : out.plannedSec;
+  out.elapsedBefore = Math.max(0, num(t.elapsedBefore, 0));
+  out.segStart = num(t.segStart);
+  out.sessionStart = num(t.sessionStart);
+  if (out.status === 'running' && out.segStart == null) out.status = 'paused';
+  out.distractions = (Array.isArray(t.distractions) ? t.distractions : []).map(z => ({ at: num(z && z.at, Date.now()), text: String((z && z.text) ?? '').slice(0, 120) }));
+  return out;
+}
+function normalize(d) {
+  const s = freshState();
+  for (const [k, def] of Object.entries(DEFAULT_SETTINGS)) {
+    const v = (d.settings || {})[k];
+    if (v === undefined) continue;
+    s.settings[k] = typeof def === 'number' ? num(v, def) : typeof def === 'boolean' ? !!v : String(v);
+  }
+  s.tasks = (Array.isArray(d.tasks) ? d.tasks : []).filter(t => t && typeof t === 'object').map(t => ({
+    ...t, id: safeId(t.id), title: String(t.title ?? 'Untitled').slice(0, 120), tag: String(t.tag ?? '').slice(0, 24),
+    estimate: num(t.estimate), status: t.status === 'done' ? 'done' : 'open', today: t.today !== false,
+    order: num(t.order, 0), createdAt: num(t.createdAt, Date.now()), doneAt: num(t.doneAt) }));
+  s.sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter(x => x && typeof x === 'object' && num(x.start) != null).map(x => ({
+    ...x, id: safeId(x.id), kind: ['focus', 'short', 'long'].includes(x.kind) ? x.kind : 'focus',
+    taskId: x.taskId ? safeId(x.taskId) : null, taskTitle: String(x.taskTitle ?? '').slice(0, 120),
+    start: num(x.start), end: num(x.end, num(x.start)), plannedSec: num(x.plannedSec, 1500) || 1500, actualSec: num(x.actualSec, 0),
+    outcome: ['completed', 'early', 'abandoned'].includes(x.outcome) ? x.outcome : 'completed',
+    rating: [1, 2, 3].includes(x.rating) ? x.rating : null, note: String(x.note ?? '').slice(0, 200),
+    distractions: (Array.isArray(x.distractions) ? x.distractions : []).map(z => ({ at: num(z && z.at, num(x.start)), text: String((z && z.text) ?? '').slice(0, 120) })) }));
+  s.timer = cleanTimer(d.timer, s.settings);
+  s.currentTaskId = d.currentTaskId ? safeId(d.currentTaskId) : null;
+  s.pendingRating = d.pendingRating ? safeId(d.pendingRating) : null;
+  return s;
+}
+let saveWarned = false;
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); saveWarned = false; }
+  catch (e) { if (!saveWarned) { saveWarned = true; toast('Couldn’t save — browser storage is blocked or full. Export a backup in Settings.'); } }
+}
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { /* storage blocked */ }
+  if (raw) {
+    try { S = normalize(JSON.parse(raw)); return null; }
+    catch (e) { console.warn('Saved data unreadable; keeping a copy', e); try { localStorage.setItem(KEY + '-unreadable-' + Date.now(), raw); } catch (_) {} }
+  }
+  S = freshState();
+  let legacy = null;
+  try { legacy = localStorage.getItem('focusdeck4') || localStorage.getItem('focusdeck3'); } catch (e) {}
+  if (legacy) {
+    try {
+      const m = Core.migrateLegacy(JSON.parse(legacy), Date.now());
+      Object.assign(S.settings, m.settings);
+      S.tasks = m.tasks; S.sessions = m.sessions;
+      S.timer = idleTimer('focus', S.settings);
+      S.currentTaskId = (S.tasks.find(t => t.status === 'open' && t.today) || {}).id || null;
+      save();
+      return { tasks: m.tasks.length, sessions: m.sessions.length };
+    } catch (e) { console.warn('Old data could not be imported', e); }
+  }
+  save();
+  return null;
+}
+
+/* Derived helpers that read state */
+const todayKey = () => dayKey(Date.now(), S.settings.dayStartHour);
+const todaySessions = () => { const k = todayKey(); return S.sessions.filter(s => dayKey(s.start, S.settings.dayStartHour) === k).sort((a, b) => a.start - b.start); };
+const taskById = id => S.tasks.find(t => t.id === id);
+const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
+const openToday = () => S.tasks.filter(t => t.status === 'open' && t.today).sort(byOrder);
+const openLater = () => S.tasks.filter(t => t.status === 'open' && !t.today).sort(byOrder);
+const maxOrder = today => Math.max(-1, ...S.tasks.filter(t => t.status === 'open' && !!t.today === today).map(t => t.order ?? 0));
+const progressOf = id => Core.taskProgress(S.sessions, id);
+function sessionTitle(s) {
+  const t = s.taskId && taskById(s.taskId);
+  return t ? t.title : (s.taskTitle || (s.taskId ? 'Deleted task' : 'No task'));
+}
+
+/** Run a change, and offer to undo it from the toast or with Cmd/Ctrl+Z.
+    Undo is allowed only while nothing else has changed since, so it can never wipe out later work. */
+let lastUndo = null, lastRedo = null;
+function restore(json) {
+  disarm();
+  S = normalize(JSON.parse(json));
+  if (S.timer.status === 'running') armTimers();
+  save(); renderAll();
+}
+function withUndo(label, mutate) {
+  const before = JSON.stringify(S);
+  mutate();
+  save(); renderAll();
+  lastUndo = { label, before, after: JSON.stringify(S) }; lastRedo = null;
+  toast(label, { label: 'Undo', fn: undo });
+}
+function undo() {
+  if (!lastUndo) { toast('Nothing to undo.'); return; }
+  if (JSON.stringify(S) !== lastUndo.after) { lastUndo = null; toast('Can’t undo — something else changed since.'); return; }
+  const u = lastUndo; lastUndo = null;
+  restore(u.before);
+  lastRedo = { label: u.label, before: u.before, after: JSON.stringify(S), redo: u.after };
+  toast(`Undone: ${u.label}`, { label: 'Redo', fn: redo });
+}
+function redo() {
+  if (!lastRedo || JSON.stringify(S) !== lastRedo.after) { lastRedo = null; toast('Nothing to redo.'); return; }
+  const r = lastRedo; lastRedo = null;
+  restore(r.redo);
+  lastUndo = { label: r.label, before: r.after, after: JSON.stringify(S) };
+  toast(`Redone: ${r.label}`, { label: 'Undo', fn: undo });
+}
+
+/* ============================================================
+   4. Sound — the alarm is scheduled on the audio clock when a session
+   starts, so it rings on time even if the browser throttles a background tab.
+   ============================================================ */
+const Sound = {
+  ctx: null, nodes: [], scheduledOk: false,
+  unlock() {
+    try {
+      if (!this.ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; this.ctx = new C(); }
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    } catch (e) {}
+  },
+  pattern(at) {
+    const ctx = this.ctx, out = [], soft = S.settings.sound === 'soft';
+    const notes = soft ? [[523.25, 0], [659.25, 0.4]] : [[659.25, 0], [880, 0.16], [1046.5, 0.32], [659.25, 1.3], [880, 1.46], [1046.5, 1.62]];
+    for (const [f, off] of notes) {
+      const o = ctx.createOscillator(), g = ctx.createGain(), len = soft ? 1.4 : 0.9;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, at + off);
+      g.gain.exponentialRampToValueAtTime(soft ? 0.18 : 0.22, at + off + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + off + len);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(at + off); o.stop(at + off + len + 0.05);
+      out.push(o, g);
+    }
+    return out;
+  },
+  schedule(delaySec) {
+    this.cancel();
+    this.scheduledOk = S.settings.sound === 'off';
+    if (this.scheduledOk || !this.ctx) return;
+    const target = Date.now() + delaySec * 1000;
+    const go = () => {
+      if (this.ctx.state !== 'running') return;
+      this.cancel();
+      this.nodes = this.pattern(this.ctx.currentTime + Math.max(0, (target - Date.now()) / 1000));
+      this.scheduledOk = true;
+    };
+    this.ctx.state === 'running' ? go() : this.ctx.resume().then(go).catch(() => {});
+  },
+  cancel() {
+    for (const n of this.nodes) { try { n.stop && n.stop(0); } catch (e) {} try { n.disconnect(); } catch (e) {} }
+    this.nodes = []; this.scheduledOk = false;
+  },
+  playNow() {
+    if (S.settings.sound === 'off') return;
+    this.unlock();
+    if (!this.ctx) return;
+    const go = () => this.pattern(this.ctx.currentTime + 0.05);
+    this.ctx.state === 'running' ? go() : this.ctx.resume().then(go).catch(() => {});
+  },
+};
+
+function notify(title, body) {
+  if (!S.settings.notify || !document.hidden) return;
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body }); } catch (e) {}
+}
+
+/* ============================================================
+   5. Timer engine — wall-clock based: time left is always computed
+   from timestamps, never from counting ticks.
+   ============================================================ */
+let tickIV = null, endTO = null;
+const remaining = () => S.timer.plannedSec - Core.elapsed(S.timer, Date.now());
+
+function armTimers() {
+  disarm();
+  const rem = remaining();
+  Sound.schedule(rem);
+  endTO = setTimeout(tick, Math.max(0, rem * 1000) + 30);
+  tickIV = setInterval(tick, 250);
+}
+function disarm() { clearInterval(tickIV); clearTimeout(endTO); tickIV = endTO = null; Sound.cancel(); }
+function tick() {
+  if (S.timer.status !== 'running') return;
+  if (remaining() <= 0) finish('completed'); else renderClock();
+}
+function startTimer(atMs) {
+  const t = S.timer;
+  if (t.status === 'running') return;
+  Sound.unlock();
+  const at = atMs || Date.now();
+  if (t.status === 'idle') { t.sessionStart = at; t.elapsedBefore = 0; t.distractions = []; }
+  t.status = 'running'; t.segStart = at;
+  attention = '';
+  armTimers(); save(); renderTimer(); renderDay();
+}
+function pauseTimer() {
+  const t = S.timer;
+  if (t.status !== 'running') return;
+  t.elapsedBefore = Core.elapsed(t, Date.now());
+  t.segStart = null; t.status = 'paused';
+  disarm(); save(); renderTimer(); renderDay();
+}
+function toggleTimer() { S.timer.status === 'running' ? pauseTimer() : startTimer(); }
+
+/** End the current session, log it, and set up the next one. */
+function finish(outcome, opts = {}) {
+  const t = S.timer;
+  if (t.status === 'idle') return null;
+  const nowMs = Date.now();
+  let actual, endMs;
+  if (outcome === 'completed') {
+    actual = t.plannedSec;
+    endMs = t.status === 'running' ? t.segStart + (t.plannedSec - t.elapsedBefore) * 1000 : nowMs;
+  } else {
+    actual = Math.min(t.plannedSec, Core.elapsed(t, nowMs));
+    endMs = nowMs;
+  }
+  disarm();
+  const kind = t.kind;
+  let logged = null;
+  if (outcome === 'completed' || actual >= 60) {   // under a minute and not finished = a mis-start, not worth logging
+    const task = kind === 'focus' && S.currentTaskId ? taskById(S.currentTaskId) : null;
+    logged = { id: uid(), kind, taskId: task ? task.id : null, taskTitle: task ? task.title : '',
+      start: Math.min(t.sessionStart || Infinity, endMs - actual * 1000), end: endMs, plannedSec: t.plannedSec, actualSec: Math.round(actual),
+      outcome, rating: null, distractions: t.distractions || [], note: '' };
+    S.sessions.push(logged);
+  }
+  let next = 'focus';
+  if (kind === 'focus') {
+    if (logged && outcome !== 'abandoned') S.pendingRating = logged.id;
+    if (outcome !== 'abandoned') next = Core.nextBreak(todaySessions(), S.settings.longEvery);
+    const cur = S.currentTaskId && taskById(S.currentTaskId);
+    if (cur && cur.status === 'done') S.currentTaskId = (openToday()[0] || {}).id || null;
+  }
+  S.timer = idleTimer(next, S.settings);
+
+  if (outcome === 'completed' && !opts.offline) {
+    if (!Sound.scheduledOk) Sound.playNow();
+    const title = kind === 'focus' ? 'Focus session done' : 'Break’s over';
+    const body = kind === 'focus' ? `Time for a ${next === 'long' ? 'long' : 'short'} break.` : 'Ready for the next focus session.';
+    notify(title, body);
+    announce(`${title}. ${body}`);
+    if (document.hidden) attention = kind === 'focus' ? '● Break time' : '● Back to focus';
+    const auto = kind === 'focus' ? S.settings.autoBreak : S.settings.autoFocus;
+    // Only chain automatically if we noticed the end promptly — never run sessions while you're away.
+    if (auto && nowMs - endMs < 60e3) startTimer(endMs);
+  }
+  save(); renderAll();
+  return logged;
+}
+
+/* ============================================================
+   6. Rendering
+   ============================================================ */
+function renderAll() {
+  renderTimer(); renderDay(); renderPlan(); renderTaskPick();
+  if (currentView === 'history') renderHistory();
+  if (currentView === 'insights') renderInsights();
+  if (currentView === 'settings') syncSettings();
+}
+
+function renderTimer() {
+  const t = S.timer, k = t.kind, busy = t.status !== 'idle';
+  const el = $('#timer');
+  el.dataset.kind = k === 'focus' ? 'focus' : 'break';
+  el.dataset.status = t.status;
+  // v5.4: the color field behind the app follows the timer (idle, focusing, break, paused)
+  document.documentElement.dataset.mode = t.status === 'paused' ? 'paused' : k !== 'focus' ? 'break' : t.status === 'running' ? 'focus' : 'idle';
+  $$('[data-act="kind"]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.kind === k)); b.disabled = busy; });
+
+  const doneN = todaySessions().filter(s => Core.credit(s) > 0).length;
+  $('#seq').textContent = k === 'focus' ? `Session ${doneN + 1} today` : `${k === 'long' ? 'Long' : 'Short'} break · ${doneN} done today`;
+  $('#workingRow').hidden = k !== 'focus';
+
+  const P = (act, label) => `<button class="btn primary" data-act="${act}">${label}</button>`;
+  const B = (act, label, cls = '') => `<button class="btn ${cls}" data-act="${act}">${label}</button>`;
+  let h;   // secondary actions first, the main action trailing (as in Apple's Clock timer)
+  if (!busy) h = k === 'focus' ? P('start', 'Start Focus') : B('skipBreak', 'Skip Break') + P('start', 'Start Break');
+  else {
+    const main = t.status === 'running' ? P('pause', 'Pause') : P('start', 'Resume');
+    h = k === 'focus' ? B('discard', 'Discard', 'danger') + B('finishEarly', 'Finish Early') + main : B('endBreak', 'End Break') + main;
+  }
+  $('#controls').innerHTML = h;
+
+  const showD = k === 'focus' && busy;
+  $('#distract').hidden = !showD;
+  if (!showD) $('#distractForm').hidden = true;
+  const n = (t.distractions || []).length;
+  $('#distractCount').textContent = n ? `· ${n} noted this session` : '';
+
+  const ps = S.pendingRating && S.sessions.find(s => s.id === S.pendingRating);
+  $('#rate').hidden = !ps;
+  if (ps) $('#rateLabel').textContent = `How was that ${Math.round(ps.actualSec / 60)}-minute session${ps.taskId ? ' on “' + sessionTitle(ps) + '”' : ''}? Keys 1–3.`;
+  renderClock();
+}
+
+/** The tab icon: a dial whose colored wedge shows time left, so you can see the session from another tab. */
+let iconKey = '';
+function setIcon(mode, frac, paused) {
+  const steps = 60, k = mode ? `${mode}${paused ? 'p' : ''}${Math.round(Math.min(1, Math.max(0, frac)) * steps)}` : 'idle';
+  if (k === iconKey) return;
+  iconKey = k;
+  const bg = mode === 'break' ? '#0e7486' : '#5b52d6', wedge = paused ? '#8e8e93' : bg;
+  let dial = '';
+  if (mode) {
+    const left = 1 - Math.round(frac * steps) / steps, a = 2 * Math.PI * left;
+    const x = 32 + 15 * Math.sin(a), y = 34 - 15 * Math.cos(a);
+    dial = left >= 0.999 ? `<circle cx='32' cy='34' r='15' fill='${wedge}'/>`
+      : left > 0 ? `<path d='M32 34V19A15 15 0 ${left > 0.5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}Z' fill='${wedge}'/>` : '';
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='${bg}'/><circle cx='32' cy='34' r='19' fill='#fff'/><rect x='27' y='8' width='10' height='6' rx='3' fill='#fff'/>${dial}</svg>`;
+  $('#favicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+function renderClock() {
+  const t = S.timer, nowMs = Date.now();
+  const rem = Math.max(0, t.plannedSec - Core.elapsed(t, nowMs));
+  const txt = fmtClock(rem);
+  const c = $('#clock'); if (c.textContent !== txt) c.textContent = txt;
+  const frac = 1 - rem / t.plannedSec;
+  $('#progressFill').style.width = (100 * frac) + '%';
+  $('#ends').textContent =
+    t.status === 'running' ? `Ends at ${fmtTime(nowMs + rem * 1000)}` :
+    t.status === 'paused' ? `Paused — ${fmtClock(rem)} left` :
+    `${Math.round(t.plannedSec / 60)} min · would end at ${fmtTime(nowMs + rem * 1000)}`;
+  const live = $('#strip .live i'); if (live) live.style.width = (100 * frac) + '%';
+  setIcon(t.status === 'idle' ? null : t.kind === 'focus' ? 'focus' : 'break', frac, t.status === 'paused');
+  document.title = attention ? attention + ' — FocusDeck'
+    : t.status === 'idle' ? (currentView === 'today' ? 'FocusDeck' : currentView[0].toUpperCase() + currentView.slice(1) + ' — FocusDeck')
+    : `${txt} ${t.kind === 'focus' ? 'Focus' : 'Break'}${t.status === 'paused' ? ' (paused)' : ''} — FocusDeck`;
+}
+
+function renderDay() {
+  const sh = S.settings.dayStartHour, target = S.settings.dailyTarget;
+  const ts = todaySessions().filter(s => s.kind === 'focus' && s.outcome !== 'abandoned');
+  const sec = ts.reduce((a, s) => a + s.actualSec, 0);
+  const credits = ts.reduce((a, s) => a + Core.credit(s), 0);
+  const st = Core.streak(S.sessions, todayKey(), sh);
+  let meta = `${fmtDur(sec)} focused · ${fmtUnits(credits)} of ${target} sessions`;
+  if (st.n > 1 || (st.n === 1 && st.todayDone)) meta += st.todayDone ? ` · ${st.n}-day streak` : ` · ${st.n}-day streak, keep it going`;
+  $('#dayMeta').textContent = meta;
+
+  let blocks = ts.map(s => `<span class="blk" title="${fmtTime(s.start)}–${fmtTime(s.end)} · ${esc(sessionTitle(s))}"><i style="width:${Core.credit(s) * 100}%"></i></span>`);
+  if (S.timer.kind === 'focus' && S.timer.status !== 'idle') blocks.push('<span class="blk live" title="In progress"><i></i></span>');
+  while (blocks.length < target) blocks.push('<span class="blk"></span>');
+  $('#strip').innerHTML = blocks.join('');
+  $('#strip').setAttribute('aria-label', `${fmtUnits(credits)} of ${target} focus sessions done today`);
+}
+
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10.2 8.6v6.8l5.4-3.4z" fill="currentColor"/></svg>';
+function taskRow(t, where) {
+  const p = progressOf(t.id), est = t.estimate;
+  const isCur = t.id === S.currentTaskId && t.status === 'open';
+  const pct = est ? Math.min(100, p / est * 100) : 0;
+  let acts = '';
+  const nm = esc(t.title);
+  if (where !== 'done') acts += `<button data-act="focusTask" aria-label="Focus on ${nm}" title="Focus on this task">${PLAY_ICON}</button>`;
+  if (where === 'today') acts += `<button data-act="plan" data-to="later" aria-label="Move ${nm} to Later">Later</button>`;
+  if (where === 'later') acts += `<button data-act="plan" data-to="today" aria-label="Move ${nm} to Today">Today</button>`;
+  const doneInfo = where === 'done' && t.doneAt ? `<span>done ${fmtDayLabel(dayKey(t.doneAt, S.settings.dayStartHour), todayKey()).toLowerCase()}</span>` : '';
+  return `<li class="task${isCur ? ' current' : ''}${t.status === 'done' ? ' is-done' : ''}" data-id="${t.id}"${where !== 'done' ? ' draggable="true"' : ''}>
+    <button class="check" data-act="toggleDone" aria-pressed="${t.status === 'done'}" aria-label="${t.status === 'done' ? 'Mark as not done' : 'Mark as done'}: ${nm}"></button>
+    <button class="tbody" data-act="edit" title="Edit task">
+      <span class="ttitle">${esc(t.title)}</span>
+      <span class="tmeta"><span class="num">${fmtUnits(p)}${est ? ' / ' + est : ''}</span>${est ? `<span class="mini${p > est ? ' over' : ''}"><i style="width:${pct}%"></i></span>` : ''}${t.tag ? `<span>#${esc(t.tag)}</span>` : ''}${doneInfo}${isCur ? '<span class="now">Selected</span>' : ''}</span>
+    </button>
+    ${acts ? `<div class="tact">${acts}</div>` : ''}
+  </li>`;
+}
+
+function renderPlan() {
+  const today = openToday(), later = openLater();
+  const done = S.tasks.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
+  $('#listToday').innerHTML = today.length ? today.map(t => taskRow(t, 'today')).join('')
+    : S.tasks.length ? `<li class="empty">Nothing planned yet. Type a task above, or move one up from Later.</li>`
+    : `<li class="empty"><b>Plan your first task.</b> Type it above and press Return. Add <code>#tag</code> to group it and <code>~4</code> to estimate 4 sessions, e.g. <code>Read chapter 3 #study ~2</code>. Then press its play button to start.</li>`;
+  $('#listLater').innerHTML = later.length ? later.map(t => taskRow(t, 'later')).join('') : `<li class="empty">Park tasks here that aren’t for today.</li>`;
+  $('#listDone').innerHTML = done.length ? done.map(t => taskRow(t, 'done')).join('') : `<li class="empty">Finished tasks show up here.</li>`;
+  $('#laterCount').textContent = later.length ? `(${later.length})` : '';
+  $('#doneCount').textContent = done.length ? `(${S.tasks.filter(t => t.status === 'done').length})` : '';
+  $('#doneBox').hidden = !done.length;
+
+  // Capacity: what's left vs your daily target, and when you'd finish at this pace.
+  const target = S.settings.dailyTarget;
+  const doneC = todaySessions().reduce((a, s) => a + Core.credit(s), 0);
+  const left = today.reduce((a, t) => a + (t.estimate ? Math.max(0, t.estimate - progressOf(t.id)) : 1), 0);
+  if (!today.length) { $('#capText').textContent = ''; $('#cap').innerHTML = ''; return; }
+  const total = doneC + left;
+  let txt = `${fmtUnits(left)} session${left === 1 ? '' : 's'} left`;
+  txt += total > target + 0.05 ? ` · ${fmtUnits(total - target)} over your target of ${target}` : total < target - 0.05 ? ` · room for ${fmtUnits(target - total)} more` : ' · right on target';
+  if (left > 0) {
+    const st = S.settings, avgBreak = (st.shortMin * (st.longEvery - 1) + st.longMin) / st.longEvery;
+    let mins = left * st.focusMin + Math.max(0, Math.ceil(left) - 1) * avgBreak;
+    if (S.timer.status !== 'idle') mins += S.timer.kind === 'focus' ? -Core.elapsed(S.timer, Date.now()) / 60 : remaining() / 60;
+    const endAt = Date.now() + Math.max(0, mins) * 60e3;
+    txt += ` · done around ${fmtTime(endAt)}${dayKey(endAt, 0) !== dayKey(Date.now(), 0) ? ' tomorrow' : ''}`;
+  }
+  $('#capText').textContent = txt;
+  const scale = Math.max(target, total) || 1;
+  $('#cap').innerHTML = `<div class="capbar"><span class="d" style="width:${doneC / scale * 100}%"></span><span class="p" style="width:${left / scale * 100}%"></span></div>
+    <span class="tgt" style="left:calc(${Math.min(100, target / scale * 100)}% - 1px)" title="Daily target: ${target}"></span>`;
+}
+
+function renderTaskPick() {
+  const sel = $('#taskPick'), cur = S.currentTaskId && taskById(S.currentTaskId);
+  const opt = t => `<option value="${t.id}">${esc(t.title)}</option>`;
+  let h = '<option value="">Nothing specific</option>';
+  if (cur && cur.status === 'done') h += `<option value="${cur.id}">${esc(cur.title)} (done)</option>`;
+  const today = openToday(), later = openLater();
+  if (today.length) h += '<optgroup label="Today">' + today.map(opt).join('') + '</optgroup>';
+  if (later.length) h += '<optgroup label="Later">' + later.map(opt).join('') + '</optgroup>';
+  sel.innerHTML = h;
+  sel.value = cur ? cur.id : '';
+}
+
+/* ---------- History ---------- */
+function renderHistory() {
+  const sh = S.settings.dayStartHour, tk = todayKey();
+  const groups = new Map();
+  for (const s of S.sessions.filter(s => s.kind === 'focus').sort((a, b) => b.start - a.start)) {
+    const k = dayKey(s.start, sh);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(s);
+  }
+  const keys = [...groups.keys()].sort().reverse();
+  if (!keys.length) { $('#histList').innerHTML = '<div class="card"><p class="emptybig">No sessions yet. Every focus session you run shows up here. Forgot to time one? Use Log a Missed Session.</p></div>'; $('#histMore').hidden = true; return; }
+  $('#histList').innerHTML = keys.slice(0, histDays).map(k => {
+    const list = groups.get(k);
+    const counted = list.filter(s => s.outcome !== 'abandoned');
+    const sec = counted.reduce((a, s) => a + s.actualSec, 0), cr = list.reduce((a, s) => a + Core.credit(s), 0);
+    const rows = list.map(s => {
+      const extra = [];
+      if (s.note) extra.push(esc(s.note));
+      if (s.distractions && s.distractions.length) extra.push('Distractions: ' + s.distractions.map(x => `${fmtTime(x.at)} ${esc(x.text || '—')}`).join(' · '));
+      if (s.manual) extra.push('added by hand');
+      return `<div data-sid="${s.id}"><div class="hrow">
+        <span class="htime">${fmtTime(s.start)}–${fmtTime(s.end)}</span>
+        <span class="htask" title="${esc(sessionTitle(s))}">${esc(sessionTitle(s))}</span>
+        <span class="hdur">${Math.round(s.actualSec / 60)}m</span>
+        <span class="hout o-${s.outcome}">${OUTCOME[s.outcome] || ''}</span>
+        <span class="hrate">${s.rating ? RATING[s.rating] : ''}</span>
+        <button class="x" data-act="deleteSession" aria-label="Delete this session" title="Delete">×</button>
+      </div>${extra.length ? `<div class="hnote">${extra.join(' · ')}</div>` : ''}</div>`;
+    }).join('');
+    const imp = list.filter(s => s.imported).length;
+    const impNote = imp ? `<p class="hint">${imp} session${imp === 1 ? '' : 's'} imported from the old version — their times are placeholders.</p>` : '';
+    return `<div class="hday card"><h3>${fmtDayLabel(k, tk)} <span>${fmtDur(sec)} · ${fmtUnits(cr)} sessions</span></h3>${impNote}${rows}</div>`;
+  }).join('');
+  $('#histMore').hidden = keys.length <= histDays;
+}
+
+function openLog() {
+  const f = $('#logForm');
+  const start = new Date(Date.now() - S.settings.focusMin * 60e3);
+  f.elements.date.value = ymd(start);
+  f.elements.time.value = pad(start.getHours()) + ':' + pad(start.getMinutes());
+  f.elements.count.value = 1;
+  const opts = [...openToday(), ...openLater(), ...S.tasks.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 15)];
+  f.elements.task.innerHTML = '<option value="">No task</option>' + opts.map(t => `<option value="${t.id}">${esc(t.title)}${t.status === 'done' ? ' (done)' : ''}</option>`).join('');
+  f.elements.task.value = S.currentTaskId || '';
+  $('#logHint').textContent = `Each session is ${S.settings.focusMin} min, with a ${S.settings.shortMin}-min gap between them.`;
+  f.hidden = false;
+  f.elements.date.focus();
+}
+
+/* ---------- Insights ---------- */
+function renderInsights() {
+  $$('[data-act="range"]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === insightRange)));
+  const box = $('#insightsBody'), sh = S.settings.dayStartHour, tk = todayKey();
+  const allFocus = S.sessions.filter(s => s.kind === 'focus');
+  if (allFocus.filter(s => Core.credit(s) > 0).length < 3) {
+    box.innerHTML = '<div class="card"><p class="emptybig">Insights fill in after three focus sessions. Run some from the Today tab, then come back here.</p></div>';
+    return;
+  }
+  const from = addDays(tk, -(insightRange - 1));
+  const inR = allFocus.filter(s => dayKey(s.start, sh) >= from);
+  const counted = inR.filter(s => s.outcome !== 'abandoned');
+  const real = counted.filter(s => !s.imported);
+  const totalSec = counted.reduce((a, s) => a + s.actualSec, 0);
+  const active = new Set(counted.map(s => dayKey(s.start, sh))).size;
+  const comp = Core.completion(inR);
+  const rated = real.filter(s => s.rating);
+  const avgR = rated.length ? rated.reduce((a, s) => a + s.rating, 0) / rated.length : null;
+
+  let h = `<div class="figs card">
+    <div class="fig"><b>${fmtHours(totalSec)}</b><span>focused</span></div>
+    <div class="fig"><b>${active ? fmtHours(totalSec / active) : '—'}</b><span>per active day · ${active} day${active === 1 ? '' : 's'}</span></div>
+    <div class="fig"><b>${comp == null ? '—' : Math.round(comp * 100) + '%'}</b><span>sessions run to the end</span></div>
+    <div class="fig"><b>${avgR == null ? '—' : RATING[Math.round(avgR)]}</b><span>typical session${rated.length ? ` · ${rated.length} rated` : ''}</span></div>
+  </div>`;
+
+  // Focus per day
+  const days = []; for (let i = insightRange - 1; i >= 0; i--) days.push(addDays(tk, -i));
+  const per = Object.fromEntries(days.map(k => [k, 0]));
+  counted.forEach(s => { const k = dayKey(s.start, sh); if (k in per) per[k] += s.actualSec / 3600; });
+  h += `<section class="isec card"><h3>Focus per day</h3>${dailyChart(days, per, tk, box.clientWidth || 680)}</section>`;
+
+  // When you focus
+  const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+  real.forEach(s => Core.splitByHour(s.start, s.start + s.actualSec * 1000).forEach(p => grid[p.dow][p.hour] += p.sec));
+  const mx = Math.max(...grid.flat());
+  if (mx > 0) {
+    const byHour = Array(24).fill(0); grid.forEach(r => r.forEach((v, hr) => byHour[hr] += v));
+    let best = 0, bi = 0;
+    for (let hr = 0; hr < 24; hr++) { const v = byHour[hr] + byHour[(hr + 1) % 24]; if (v > best) { best = v; bi = hr; } }
+    const share = Math.round(best / byHour.reduce((a, b) => a + b, 0) * 100);
+    let g = '<div class="heat"><span></span>';
+    for (let hr = 0; hr < 24; hr++) g += `<span class="hl">${hr % 3 === 0 ? pad(hr) : ''}</span>`;
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((d, i) => {
+      g += `<span class="rl">${d}</span>`;
+      for (let hr = 0; hr < 24; hr++) { const v = grid[i][hr]; g += `<span class="c" title="${d} ${pad(hr)}:00 · ${fmtDur(v)}">${v ? `<i style="opacity:${(0.18 + 0.82 * v / mx).toFixed(2)}"></i>` : ''}</span>`; }
+    });
+    h += `<section class="isec card"><h3>When you focus</h3><p class="lead">${share}% of your focus time falls between ${pad(bi)}:00 and ${pad((bi + 2) % 24)}:00.</p><div role="img" aria-label="Focus time by weekday and hour; busiest from ${pad(bi)}:00 to ${pad((bi + 2) % 24)}:00">${g}</div></div></section>`;
+  }
+
+  // Estimates
+  const est = Core.estimateStats(S.tasks, S.sessions);
+  let e;
+  if (est.rows.length < 2) e = '<p class="muted">Finish a couple of tasks that have an estimate (type <code>~4</code> when you add one) and this shows how your guesses compare with what tasks really take.</p>';
+  else {
+    const r = est.overall;
+    e = `<p class="lead">${r > 1.15 ? `Tasks typically take you <b>${r.toFixed(1)}×</b> what you estimate.` : r < 0.87 ? `You tend to overestimate — tasks typically take <b>${r.toFixed(1)}×</b> your estimate.` : `Your estimates hold up well (typical ratio <b>${r.toFixed(1)}×</b>).`} <span class="muted">Based on ${est.rows.length} finished tasks, all time.</span></p>`;
+    if (est.tags.length > 1) e += `<table class="t"><thead><tr><th>Tag</th><th class="n">Tasks</th><th class="n">Actual ÷ estimate</th></tr></thead><tbody>${est.tags.map(x => `<tr><td>${x.tag === 'untagged' ? '<span class="muted">untagged</span>' : '#' + esc(x.tag)}</td><td class="n">${x.n}</td><td class="n">${x.ratio.toFixed(2)}×</td></tr>`).join('')}</tbody></table>`;
+    const recent = [...est.rows].sort((a, b) => b.doneAt - a.doneAt).slice(0, 8);
+    e += `<table class="t" style="margin-top:16px"><thead><tr><th>Recent task</th><th class="n">Estimate</th><th class="n">Actual</th></tr></thead><tbody>${recent.map(x => `<tr><td title="${esc(x.title)}">${esc(x.title)}</td><td class="n">${x.estimate}</td><td class="n">${fmtUnits(x.actual)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  h += `<section class="isec card"><h3>Estimates vs reality</h3>${e}</section>`;
+
+  // Session quality
+  if (real.length) {
+    const dCount = real.reduce((a, s) => a + (s.distractions || []).length, 0);
+    let q = `<p class="lead">${(dCount / real.length).toFixed(1)} distractions noted per session on average.`;
+    const deep = rated.filter(s => s.rating === 3), scat = rated.filter(s => s.rating === 1);
+    if (deep.length >= 2 && scat.length >= 2) {
+      const avgD = l => l.reduce((a, s) => a + (s.distractions || []).length, 0) / l.length;
+      q += ` Deep sessions average ${avgD(deep).toFixed(1)}, scattered ones ${avgD(scat).toFixed(1)}.`;
+    }
+    q += '</p>';
+    if (rated.length) {
+      const cnt = [1, 2, 3].map(v => rated.filter(s => s.rating === v).length), m = Math.max(...cnt);
+      q += '<div class="rbars">' + [3, 2, 1].map(v => `<span>${RATING[v]}</span><span class="rb"><i style="width:${cnt[v - 1] / m * 100}%"></i></span><span class="n">${cnt[v - 1]}</span>`).join('') + '</div>';
+    } else q += '<p class="muted">Rate sessions when they end to see how they felt over time.</p>';
+    h += `<section class="isec card"><h3>Session quality</h3>${q}</section>`;
+  }
+  const imp = inR.filter(s => s.imported).length;
+  if (imp) h += `<p class="foot">${imp} session${imp === 1 ? '' : 's'} imported from the old version have no real start times, so they count toward totals and the daily chart but not the hour chart, completion rate or quality.</p>`;
+  box.innerHTML = h;
+}
+
+function dailyChart(days, per, tk, width) {
+  const W = Math.max(300, Math.round(width)), H = 190, padL = 34, padB = 24, padT = 14;
+  const target = S.settings.dailyTarget * S.settings.focusMin / 60;
+  const yMax = Math.ceil(Math.max(target, ...Object.values(per), 1));
+  const step = yMax <= 4 ? 1 : yMax <= 10 ? 2 : 5;
+  const n = days.length, slot = (W - padL) / n, bw = Math.max(2, Math.min(28, slot * 0.64));
+  const y = v => padT + (H - padT - padB) * (1 - v / yMax);
+  const vals = days.map(k => per[k]), tot = vals.reduce((a, b) => a + b, 0), best = days[vals.indexOf(Math.max(...vals))];
+  const desc = `Hours focused per day over ${n} days: ${fmtDur(tot * 3600)} in total, best day ${fmtDayLabel(best, tk)} with ${fmtDur(per[best] * 3600)}, daily target ${fmtUnits(target)} hours.`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(desc)}">`;
+  for (let v = 0; v <= yMax; v += step) s += `<line class="gl" x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${padL - 8}" y="${y(v) + 4}" text-anchor="end">${v}h</text>`;
+  days.forEach((k, i) => {
+    const v = per[k], x = padL + i * slot + (slot - bw) / 2;
+    if (v > 0) s += `<rect class="cb" x="${x.toFixed(1)}" y="${y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(v)).toFixed(1)}" rx="1.5"><title>${fmtDayLabel(k, tk)}: ${fmtDur(v * 3600)}</title></rect>`;
+    const every = n <= 7 ? 1 : n <= 31 ? 7 : 14;
+    if ((n - 1 - i) % every === 0) {
+      const lbl = n <= 7 ? keyToDate(k).toLocaleDateString('en-GB', { weekday: 'short' }) : keyToDate(k).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      s += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${lbl}</text>`;
+    }
+  });
+  s += `<line class="tg" x1="${padL}" x2="${W}" y1="${y(target)}" y2="${y(target)}"/><text class="tl" x="${padL + 4}" y="${y(target) - 5}" text-anchor="start">daily target ${fmtUnits(target)}h</text></svg>`;
+  return `<div class="chart">${s}</div>`;
+}
+
+/* ---------- Settings ---------- */
+function syncSettings() {
+  $$('[data-set]').forEach(el => {
+    const v = S.settings[el.dataset.set];
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = String(v);
+  });
+  const st = $('#notifStatus');
+  if (!('Notification' in window)) st.textContent = 'Not supported in this browser.';
+  else if (Notification.permission === 'denied') st.textContent = 'Blocked by the browser — allow notifications for this page to use it.';
+  else st.textContent = '';
+}
+/** v5.2 follows the system appearance only (HIG › Dark Mode: avoid an app-specific appearance setting). */
+function applyTheme() { document.documentElement.removeAttribute('data-theme'); }
+
+/** Interactive glass glows where the pointer is. */
+function bindGlass() {
+  document.addEventListener('pointermove', e => {
+    const g = e.target.closest && e.target.closest('.glow,.controls .btn');
+    if (!g) return;
+    const r = g.getBoundingClientRect();
+    g.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    g.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }, { passive: true });
+}
+
+/* ---------- Toast ---------- */
+let toastTO, toastMs = 0;
+function toast(msg, action) {
+  const el = $('#toast');
+  el.innerHTML = `<span>${esc(msg)}</span>${action ? `<button data-act="toastAction">${esc(action.label)}</button>` : ''}`;
+  el._action = action ? action.fn : null;
+  el.classList.add('show');
+  toastMs = action ? 10000 : 4000;   // stays put while hovered or focused
+  armToast();
+}
+function armToast() { clearTimeout(toastTO); toastTO = setTimeout(hideToast, toastMs); }
+function announce(msg) { const a = $('#announce'); a.textContent = ''; setTimeout(() => { a.textContent = msg; }, 50); }
+function hideToast() { $('#toast').classList.remove('show'); }
+
+/* ============================================================
+   7. Actions
+   ============================================================ */
+const VIEWS = ['today', 'history', 'insights', 'settings'];
+const UI_KEY = 'focusdeck5-ui';   // view preference only; not part of the data format or backups
+function loadUI() { try { return JSON.parse(localStorage.getItem(UI_KEY)) || {}; } catch (e) { return {}; } }
+function showView(v, opts = {}) {
+  currentView = v;
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ view: v })); } catch (e) {}
+  ['today', 'history', 'insights', 'settings'].forEach(x => { $('#view-' + x).hidden = x !== v; });
+  $$('nav [data-view]').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
+  if (v === 'history') renderHistory();
+  if (v === 'insights') renderInsights();
+  if (v === 'settings') syncSettings();
+  window.scrollTo(0, 0);
+  renderClock();
+  if (opts.focus) { const h = $('#view-' + v + ' h1'); if (h) h.focus({ preventScroll: true }); }   // screen readers land on the new tab's title
+}
+
+function toggleDone(id) {
+  const t = taskById(id); if (!t) return;
+  if (t.status === 'open') {
+    withUndo(`Done: ${t.title}`, () => {
+      t.status = 'done'; t.doneAt = Date.now();
+      const busyFocus = S.timer.kind === 'focus' && S.timer.status !== 'idle';
+      if (S.currentTaskId === id && !busyFocus) S.currentTaskId = (openToday()[0] || {}).id || null;
+    });
+  } else {
+    t.status = 'open'; t.doneAt = null; t.today = true; t.order = maxOrder(true) + 1;
+    save(); renderAll();
+  }
+}
+
+function focusTask(id) {
+  const t = taskById(id); if (!t) return;
+  S.currentTaskId = id;
+  if (S.timer.status === 'idle') {
+    if (S.timer.kind !== 'focus') S.timer = idleTimer('focus', S.settings);
+    startTimer();
+  } else if (S.timer.kind === 'focus') toast(`This session now counts toward “${t.title}”`);
+  else toast('Selected for your next focus session');
+  save(); renderAll();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openEdit(id) {
+  const t = taskById(id); if (!t) return;
+  editId = id;
+  const f = $('#taskForm');
+  f.elements.title.value = t.title;
+  f.elements.tag.value = t.tag || '';
+  f.elements.estimate.value = t.estimate || '';
+  f.elements.plan.value = t.today ? 'today' : 'later';
+  f.elements.plan.disabled = t.status === 'done';
+  const sec = S.sessions.filter(s => s.taskId === id && s.kind === 'focus' && s.outcome !== 'abandoned').reduce((a, s) => a + s.actualSec, 0);
+  $('#taskInfo').textContent = `${fmtUnits(progressOf(id))} sessions logged · ${fmtDur(sec)} in total. Fix missed time from History → Log a missed session.`;
+  $('#tagList').innerHTML = [...new Set(S.tasks.map(x => x.tag).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
+  $('#taskDialog').showModal();
+  f.elements.title.focus();
+}
+
+function deleteTask(id) {
+  $('#taskDialog').close();
+  const t = taskById(id); if (!t) return;
+  withUndo(`Deleted “${t.title}”`, () => {
+    S.tasks = S.tasks.filter(x => x.id !== id);
+    if (S.currentTaskId === id) S.currentTaskId = null;
+  });
+}
+
+function openDistract() {
+  if (S.timer.kind !== 'focus' || S.timer.status === 'idle') return;
+  $('#distractForm').hidden = false;
+  $('#distractInput').focus();
+}
+function closeDistract() { $('#distractForm').hidden = true; $('#distractInput').value = ''; }
+
+function dismissRate(v) {
+  const s = S.sessions.find(x => x.id === S.pendingRating);
+  if (s) { if (v) s.rating = v; const note = $('#rateNote').value.trim(); if (note) s.note = note; }
+  $('#rateNote').value = '';
+  S.pendingRating = null;
+  save(); renderTimer();
+}
+
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+// v5.3: text starting with = + - @ is prefixed with ' so Excel shows it instead of running it as a formula.
+const csvCell = v => { let s = String(v ?? ''); if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const localStamp = ms => { const d = new Date(ms); return ymd(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+
+function exportCsv() {
+  const sh = S.settings.dayStartHour;
+  const rows = [['day', 'start', 'end', 'kind', 'task', 'tag', 'planned_min', 'actual_min', 'outcome', 'credit', 'rating', 'distractions', 'note', 'source']];
+  for (const s of [...S.sessions].sort((a, b) => a.start - b.start)) {
+    const t = s.taskId && taskById(s.taskId);
+    rows.push([dayKey(s.start, sh), localStamp(s.start), localStamp(s.end), s.kind, s.kind === 'focus' ? sessionTitle(s) : '', t ? t.tag : '',
+      (s.plannedSec / 60).toFixed(1), (s.actualSec / 60).toFixed(1), s.outcome, Core.credit(s).toFixed(2), s.rating ? RATING[s.rating] : '',
+      (s.distractions || []).length, s.note || '', s.imported ? 'imported' : s.manual ? 'manual' : 'timer']);
+  }
+  download(`focusdeck-sessions-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv');
+}
+
+function mergeLegacy(d) {
+  let m;
+  try { m = Core.migrateLegacy(d, Date.now()); } catch (e) { toast('Couldn’t read that data.'); return; }
+  if (!m.tasks.length && !m.sessions.length) { toast('No tasks or sessions found in that data.'); return; }
+  if (S.sessions.some(s => s.imported) && !confirm('You’ve imported old data before. Importing again will create duplicates. Continue?')) return;
+  withUndo(`Imported ${m.tasks.length} tasks and ${m.sessions.length} sessions`, () => {
+    const base = maxOrder(true) + 1;
+    m.tasks.forEach((t, i) => { t.order = base + i; });
+    S.tasks.push(...m.tasks); S.sessions.push(...m.sessions);
+    if (!S.currentTaskId) S.currentTaskId = (openToday()[0] || {}).id || null;
+  });
+}
+
+function importData(d) {
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+  if (d && d.version === 5 && Array.isArray(d.sessions)) {
+    if (!confirm(`Replace everything with this backup? It has ${(d.tasks || []).length} tasks and ${d.sessions.length} sessions.`)) return;
+    withUndo('Backup restored', () => {
+      disarm();
+      S = normalize(d);
+      S.timer = idleTimer(S.timer.kind, S.settings);
+      applyTheme();
+    });
+  } else if (d && (Array.isArray(d.history) || Array.isArray(d.tasks))) mergeLegacy(d);
+  else toast('That doesn’t look like FocusDeck data.');
+}
+
+const ACTIONS = {
+  start: () => startTimer(),
+  pause: pauseTimer,
+  finishEarly: () => withUndo('Session ended early', () => finish('early')),
+  discard: () => withUndo('Session discarded', () => finish('abandoned')),
+  endBreak: () => finish('early'),
+  skipBreak: () => {
+    if (S.timer.kind === 'long') { const now = Date.now(); S.sessions.push({ id: uid(), kind: 'long', taskId: null, taskTitle: '', start: now, end: now, plannedSec: S.timer.plannedSec, actualSec: 0, outcome: 'early', rating: null, distractions: [], note: '' }); }
+    S.timer = idleTimer('focus', S.settings); save(); renderAll();
+  },
+  kind: b => { if (S.timer.status !== 'idle') return; S.timer = idleTimer(b.dataset.kind, S.settings); save(); renderAll(); },
+  distract: openDistract,
+  rate: b => dismissRate(+b.dataset.v),
+  rateSkip: () => dismissRate(null),
+  toggleDone: (b, id) => toggleDone(id),
+  focusTask: (b, id) => focusTask(id),
+  plan: (b, id) => {
+    const t = taskById(id); if (!t) return;
+    t.today = b.dataset.to === 'today'; t.order = maxOrder(t.today) + 1;
+    save(); renderAll();
+    toast(t.today ? `Moved to today: ${t.title}` : `Moved to later: ${t.title}`);
+  },
+  edit: (b, id) => openEdit(id),
+  deleteTask: () => deleteTask(editId),
+  closeDialog: b => b.closest('dialog').close(),
+  toastAction: () => { const fn = $('#toast')._action; hideToast(); if (fn) fn(); },
+  deleteSession: b => {
+    const sid = b.closest('[data-sid]').dataset.sid;
+    withUndo('Session deleted', () => { S.sessions = S.sessions.filter(s => s.id !== sid); if (S.pendingRating === sid) S.pendingRating = null; });
+  },
+  openLog,
+  cancelLog: () => { $('#logForm').hidden = true; },
+  histMore: () => { histDays += 14; renderHistory(); },
+  range: b => { insightRange = +b.dataset.r; renderInsights(); },
+  testSound: () => { Sound.unlock(); Sound.playNow(); if (S.settings.sound === 'off') toast('Sound is off.'); },
+  exportJson: () => download(`focusdeck-backup-${todayKey()}.json`, JSON.stringify({ ...S, appVersion: APP_VERSION, exportedAt: new Date().toISOString() }, null, 1), 'application/json'),
+  exportCsv,
+  importJson: () => $('#fileIn').click(),
+  importLegacy: () => {
+    let raw = null;
+    try { raw = localStorage.getItem('focusdeck4') || localStorage.getItem('focusdeck3'); } catch (e) {}
+    if (!raw) { toast('No old FocusDeck data in this browser — use the paste option below.'); return; }
+    try { mergeLegacy(JSON.parse(raw)); } catch (e) { toast('The old data couldn’t be read.'); }
+  },
+  importPaste: () => {
+    const txt = $('#pasteBox').value.trim(); if (!txt) return;
+    let d; try { d = JSON.parse(txt); } catch (e) { toast('That isn’t valid data — copy it again.'); return; }
+    importData(d); $('#pasteBox').value = '';
+  },
+  eraseAll: () => {
+    if (!confirm('Erase all tasks, sessions and settings? You can undo for a few seconds — export a backup first if unsure.')) return;
+    withUndo('Everything erased', () => { disarm(); S = freshState(); applyTheme(); });
+  },
+  step: b => {
+    const inp = b.parentElement.querySelector('input');
+    inp.value = clamp((parseInt(inp.value, 10) || 0) + Number(b.dataset.d), +inp.min, +inp.max, +inp.value);
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  },
+  runTests: runTestsUI,
+  shortcuts: () => $('#keysDialog').showModal(),
+};
+
+/* ============================================================
+   8. Events
+   ============================================================ */
+function bindEvents() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-view],[data-act]');
+    if (!b || b.disabled) return;
+    if (b.dataset.view) { showView(b.dataset.view, { focus: true }); return; }
+    const li = b.closest('[data-id]');
+    const fn = ACTIONS[b.dataset.act];
+    if (fn) fn(b, li && li.dataset.id, e);
+  });
+
+  // First interaction unlocks audio; re-arm the alarm if a session survived a reload.
+  document.addEventListener('pointerdown', () => {
+    if (!Sound.ctx || Sound.ctx.state !== 'running') {
+      Sound.unlock();
+      if (S.timer.status === 'running' && !Sound.scheduledOk) Sound.schedule(remaining());
+    }
+  }, true);
+
+  $('#taskPick').addEventListener('change', e => { S.currentTaskId = e.target.value || null; save(); renderPlan(); });
+
+  $$('form.quick').forEach(f => f.addEventListener('submit', e => {
+    e.preventDefault();
+    const inp = f.querySelector('input'), p = Core.parseQuick(inp.value);
+    if (!p.title) return;
+    const today = f.dataset.plan === 'today';
+    const t = { id: uid(), title: p.title.slice(0, 120), tag: p.tag, estimate: p.estimate, status: 'open', today, order: maxOrder(today) + 1, createdAt: Date.now(), doneAt: null };
+    S.tasks.push(t);
+    if (today && !S.currentTaskId) S.currentTaskId = t.id;
+    inp.value = '';
+    save(); renderAll();
+  }));
+
+  // Esc leaves a quick-add box so the keyboard shortcuts work again
+  $$('form.quick input').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Escape') { inp.value = ''; inp.blur(); } }));
+
+  $('#taskForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const t = taskById(editId), f = e.target; if (!t) return;
+    const title = f.elements.title.value.trim(); if (!title) return;
+    t.title = title.slice(0, 120);
+    t.tag = f.elements.tag.value.trim().replace(/^#/, '');
+    t.estimate = clamp(parseInt(f.elements.estimate.value, 10), 1, 60, null);
+    const today = f.elements.plan.value === 'today';
+    if (t.status === 'open' && today !== !!t.today) { t.today = today; t.order = maxOrder(today) + 1; }
+    $('#taskDialog').close();
+    save(); renderAll();
+  });
+
+  $('#distractForm').addEventListener('submit', e => {
+    e.preventDefault();
+    S.timer.distractions = S.timer.distractions || [];
+    S.timer.distractions.push({ at: Date.now(), text: $('#distractInput').value.trim() });
+    closeDistract(); save(); renderTimer();
+    toast('Noted. Back to it.');
+  });
+  $('#distractInput').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeDistract(); } });
+  $('#rate').addEventListener('submit', e => { e.preventDefault(); dismissRate(null); });
+
+  $('#logForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target;
+    const [y, m, d] = f.elements.date.value.split('-').map(Number), [hh, mm] = f.elements.time.value.split(':').map(Number);
+    const start = new Date(y, m - 1, d, hh, mm).getTime();
+    if (!Number.isFinite(start)) return;
+    if (start > Date.now()) { toast('That start time is in the future.'); return; }
+    const n = clamp(parseInt(f.elements.count.value, 10), 1, 12, 1);
+    const task = f.elements.task.value ? taskById(f.elements.task.value) : null;
+    const fm = S.settings.focusMin;
+    withUndo(`Added ${n} session${n > 1 ? 's' : ''} to history`, () => {
+      for (let i = 0; i < n; i++) {
+        const st = start + i * (fm + S.settings.shortMin) * 60e3;
+        S.sessions.push({ id: uid(), kind: 'focus', taskId: task ? task.id : null, taskTitle: task ? task.title : '', start: st, end: st + fm * 60e3,
+          plannedSec: fm * 60, actualSec: fm * 60, outcome: 'completed', rating: null, distractions: [], note: '', manual: true });
+      }
+    });
+    f.hidden = true;
+  });
+
+  $('#view-settings').addEventListener('change', e => {
+    const el = e.target, key = el.dataset.set; if (!key) return;
+    let v;
+    if (el.type === 'checkbox') v = el.checked;
+    else if (el.type === 'number') { v = clamp(parseInt(el.value, 10), +el.min, +el.max, S.settings[key]); el.value = v; }
+    else if (key === 'dayStartHour') v = +el.value;
+    else v = el.value;
+    S.settings[key] = v;
+    if (['focusMin', 'shortMin', 'longMin'].includes(key) && S.timer.status === 'idle') S.timer = idleTimer(S.timer.kind, S.settings);
+    if (key === 'sound' && S.timer.status === 'running') Sound.schedule(remaining());
+    if (key === 'notify' && v) {
+      if (!('Notification' in window)) { S.settings.notify = false; el.checked = false; }
+      else Notification.requestPermission().then(p => {
+        if (p !== 'granted') { S.settings.notify = false; el.checked = false; save(); toast('Notifications weren’t allowed for this page.'); }
+        syncSettings();
+      }).catch(() => {});
+    }
+    save(); renderAll();
+  });
+
+  $('#fileIn').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try { importData(JSON.parse(await f.text())); } catch (err) { toast('That file isn’t a FocusDeck backup.'); }
+  });
+
+  // Drag to reorder (and drag between Today and Later)
+  let dragId = null;
+  const clearMarks = () => $$('.drop-before,.drop-after,.dragging').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
+  ['listToday', 'listLater'].forEach(listId => {
+    const ul = $('#' + listId);
+    ul.addEventListener('dragstart', e => {
+      const li = e.target.closest('li[data-id]'); if (!li) return;
+      dragId = li.dataset.id; li.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId);
+    });
+    ul.addEventListener('dragend', () => { dragId = null; clearMarks(); });
+    ul.addEventListener('dragover', e => {
+      if (!dragId) return;
+      e.preventDefault();
+      $$('.drop-before,.drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+      const li = e.target.closest('li[data-id]');
+      if (li && li.dataset.id !== dragId) { const r = li.getBoundingClientRect(); li.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after'); }
+    });
+    ul.addEventListener('drop', e => {
+      e.preventDefault();
+      const task = dragId && taskById(dragId); if (!task) return;
+      const toToday = listId === 'listToday';
+      const list = (toToday ? openToday() : openLater()).filter(t => t.id !== dragId);
+      const li = e.target.closest('li[data-id]');
+      let idx = list.length;
+      if (li && li.dataset.id !== dragId) { const i = list.findIndex(t => t.id === li.dataset.id), r = li.getBoundingClientRect(); idx = e.clientY < r.top + r.height / 2 ? i : i + 1; }
+      task.today = toToday;
+      list.splice(idx, 0, task); list.forEach((t, i) => { t.order = i; });
+      dragId = null; clearMarks(); save(); renderAll();
+    });
+  });
+
+  const t = $('#toast');
+  ['mouseenter', 'focusin'].forEach(ev => t.addEventListener(ev, () => clearTimeout(toastTO)));
+  ['mouseleave', 'focusout'].forEach(ev => t.addEventListener(ev, () => { if (t.classList.contains('show')) armToast(); }));
+  if (IS_MAC) { $('#undoKey').textContent = '⌘Z'; $$('kbd.mod').forEach(k => { k.textContent = '⌘'; }); }
+
+  document.addEventListener('keydown', e => {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+    // Standard undo/redo shortcuts work everywhere outside text fields (text fields keep their own undo).
+    if ((IS_MAC ? e.metaKey : e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'z' && !document.querySelector('dialog[open]')) {
+      e.preventDefault(); e.shiftKey ? redo() : undo(); return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (e.key === '?') { $('#keysDialog').showModal(); return; }
+    if (currentView !== 'today') return;
+    if (e.key === ' ' && tag === 'BUTTON') return;        // let the focused button handle its own Space
+    switch (e.key) {
+      case ' ': e.preventDefault(); toggleTimer(); break;
+      case 'n': case 'N': e.preventDefault(); $('#quickToday').focus(); break;
+      case 'd': case 'D': if (S.timer.kind === 'focus' && S.timer.status !== 'idle') { e.preventDefault(); openDistract(); } break;
+      case '1': case '2': case '3': if (S.pendingRating) dismissRate(+e.key); break;
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { save(); return; }
+    attention = '';
+    if (S.timer.status === 'running') tick();
+    renderClock();
+    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }
+  });
+  window.addEventListener('pagehide', save);
+  let rsz;
+  window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (currentView === 'insights') renderInsights(); }, 150); });
+}
+
+/* ============================================================
+   9. Self-check — tests for the pure logic in Core.
+   Run from Settings, or open the file with #selftest at the end of the URL.
+   ============================================================ */
+function eq(a, b) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`expected ${y}, got ${x}`); }
+const fs = (o = {}) => ({ kind: 'focus', outcome: 'completed', plannedSec: 1500, actualSec: 1500, start: 0, ...o });
+const at = (d, h = 12, m = 0) => new Date(2026, 9, d, h, m).getTime();   // October 2026
+const TESTS = [
+  ['A full focus session counts as one', () => eq(Core.credit(fs()), 1)],
+  ['Ending early gives partial credit', () => eq(Core.credit(fs({ outcome: 'early', actualSec: 750 })), 0.5)],
+  ['Discarded sessions and breaks give no credit', () => { eq(Core.credit(fs({ outcome: 'abandoned' })), 0); eq(Core.credit(fs({ kind: 'short' })), 0); }],
+  ['Elapsed time survives pause and resume', () => {
+    eq(Core.elapsed({ status: 'running', elapsedBefore: 300, segStart: 1000 }, 61000), 360);
+    eq(Core.elapsed({ status: 'paused', elapsedBefore: 300, segStart: null }, 999999), 300);
+  }],
+  ['Streak counts consecutive days', () => eq(Core.streak([17, 18, 19].map(d => fs({ start: at(d) })), '2026-10-19', 0), { n: 3, todayDone: true })],
+  ['Streak holds while today is still empty', () => eq(Core.streak([17, 18].map(d => fs({ start: at(d) })), '2026-10-19', 0), { n: 2, todayDone: false })],
+  ['Streak resets after a missed day', () => eq(Core.streak([15, 16].map(d => fs({ start: at(d) })), '2026-10-19', 0).n, 0)],
+  ['Late-night sessions count toward the previous day', () => { eq(dayKey(at(20, 2, 30), 4), '2026-10-19'); eq(dayKey(at(20, 2, 30), 0), '2026-10-20'); }],
+  ['Sessions are split across hour boundaries', () => eq(Core.splitByHour(at(19, 9, 50), at(19, 10, 20)).map(p => [p.dow, p.hour, p.sec]), [[0, 9, 600], [0, 10, 1200]])],
+  ['Long break comes after N focus sessions', () => {
+    const s = [1, 2, 3, 4].map(i => fs({ start: i }));
+    eq(Core.nextBreak(s.slice(0, 3), 4), 'short');
+    eq(Core.nextBreak(s, 4), 'long');
+    eq(Core.nextBreak([...s, { kind: 'long', outcome: 'completed', start: 5 }], 4), 'short');
+    eq(Core.nextBreak([...s, fs({ start: 5 })], 4), 'short');   // a skipped long break doesn't make every break long
+  }],
+  ['Quick add reads #tag and ~estimate', () => eq(Core.parseQuick('Stats past paper #stats ~6'), { title: 'Stats past paper', tag: 'stats', estimate: 6 })],
+  ['Quick add leaves ordinary text alone', () => eq(Core.parseQuick('Read ch. 4 ~ notes'), { title: 'Read ch. 4 ~ notes', tag: '', estimate: null })],
+  ['Estimate accuracy uses the median ratio', () => {
+    const tasks = [{ id: 'a', status: 'done', estimate: 4, tag: 'x' }, { id: 'b', status: 'done', estimate: 2, tag: 'x' }, { id: 'c', status: 'done', estimate: 4, tag: 'y' }, { id: 'd', status: 'open', estimate: 1 }];
+    const ses = [...Array(6)].map(() => fs({ taskId: 'a' })).concat([...Array(2)].map(() => fs({ taskId: 'b' })), [...Array(2)].map(() => fs({ taskId: 'c' })));
+    const r = Core.estimateStats(tasks, ses);
+    eq([r.rows.length, r.overall, r.tags.find(t => t.tag === 'x').ratio], [3, 1, 1.25]);
+  }],
+  ['Completion rate ignores imported sessions', () => eq(Core.completion([fs(), fs({ outcome: 'early' }), fs({ imported: true })]), 0.5)],
+  ['A crafted backup cannot inject HTML', () => {
+    const bad = '"><img src=x onerror=alert(1)>';
+    const s = normalize({ version: 5, tasks: [{ id: bad, title: bad, estimate: bad, status: 'open' }], sessions: [{ id: bad, start: 1, taskId: bad, rating: bad }] });
+    eq([/[<>"]/.test(s.tasks[0].id), s.tasks[0].estimate, /[<>"]/.test(s.sessions[0].id), s.sessions[0].rating], [false, null, false, null]);
+  }],
+  ['The removed theme setting is ignored — appearance follows the system', () => {
+    const s = normalize({ version: 5, settings: { theme: 'dark', focusMin: 30 } });
+    eq([s.settings.theme, s.settings.focusMin], [undefined, 30]);
+  }],
+  ['Text colors meet 4.5:1 contrast in the current appearance', () => {
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+    const lum = hex => { const c = hex.replace('#', '').match(/../g).map(x => parseInt(x, 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const low = [];
+    for (const fg of ['--ink', '--ink2', '--ink3', '--accent', '--break', '--danger', '--good', '--warn'])
+      for (const bg of ['--bg', '--surface']) { const r = ratio(v(fg), v(bg)); if (r < 4.5) low.push(`${fg} on ${bg} ${r.toFixed(2)}`); }
+    if (low.length) throw new Error(low.join(', '));
+  }],
+  ['Text stays 4.5:1 on the color field, cards and glass (current appearance)', () => {
+    // v5.4: composites each translucent layer over its worst case — both blobs of a timer state
+    // stacked at full strength, a card on top of that, and glass over the darkest (light) or
+    // brightest (dark) fill that can scroll beneath it.
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+    const rgba = s => { if (s[0] === '#') { const h = s.slice(1).match(/../g).map(x => parseInt(x, 16)); return [...h, 1]; }
+      const m = s.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]; };
+    const over = (top, bot) => top.slice(0, 3).map((c, i) => c * top[3] + bot[i] * (1 - top[3])).concat(1);
+    const lum = c => { const l = c.slice(0, 3).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const bg = rgba(v('--bg')), low = [];
+    const onField = ['--ink', '--ink2', '--ink3', '--accent', '--break', '--danger'];
+    const all = [...onField, '--good', '--warn'];
+    for (const mode of ['i', 'f', 'b', 'p']) {
+      const field = over(rgba(v(`--f${mode}2`)), over(rgba(v(`--f${mode}1`)), bg)), card = over(rgba(v('--card')), field);
+      for (const fg of onField) { const r = ratio(rgba(v(fg)), field); if (r < 4.5) low.push(`${fg} on field ${mode} ${r.toFixed(2)}`); }
+      for (const fg of all) { const r = ratio(rgba(v(fg)), card); if (r < 4.5) low.push(`${fg} on card ${mode} ${r.toFixed(2)}`); }
+    }
+    const glass = over(rgba(v('--glass')), rgba(v('--glass-worst')));
+    for (const fg of ['--ink', '--ink2', '--accent', '--danger']) { const r = ratio(rgba(v(fg)), glass); if (r < 4.5) low.push(`${fg} on glass ${r.toFixed(2)}`); }
+    if (low.length) throw new Error(low.join(', '));
+  }],
+  ['A crafted timer is cleaned to safe values', () => {
+    const s = normalize({ version: 5, timer: { kind: 'focus', status: 'running', plannedSec: '<b>', elapsedBefore: 'x', segStart: null, distractions: [{ at: 'x', text: 5 }] } });
+    eq([s.timer.status, s.timer.plannedSec, s.timer.elapsedBefore, typeof s.timer.distractions[0].at, s.timer.distractions[0].text], ['paused', 1500, 0, 'number', '5']);
+  }],
+  ['CSV export defuses spreadsheet formulas', () => eq([csvCell('=1+1'), csvCell('-2'), csvCell(-2), csvCell('Plan, then do')], ["'=1+1", "'-2", '-2', '"Plan, then do"'])],
+  ['Old FocusDeck data keeps task progress', () => {
+    const old = {
+      settings: { pomo: 25, short: 5, long: 15, longAfter: 4 },
+      tasks: [{ id: 't1', name: 'stats paper', priority: 'high', est: 8, pomosDone: 5, done: false }, { id: 't2', name: 'micro ch 11', priority: 'high', est: 4, pomosDone: 4, done: true }, { id: 't3', name: 'micro ch 12', priority: 'med', est: 6, pomosDone: 2, done: false, created: '2026-04-26T00:00:00.000Z' }],
+      history: [{ date: '2026-04-26', pomos: 10, sessions: [...Array(5)].map(() => ({ taskId: 't1' })).concat([...Array(4)].map(() => ({ taskId: 't2' }))) }],
+    };
+    const m = Core.migrateLegacy(old, at(19));
+    const id = name => m.tasks.find(t => t.title === name).id;
+    eq([m.tasks.length, m.sessions.length], [3, 12]);   // 10 from history (1 unassigned) + 2 hand-added on t3
+    eq([Core.taskProgress(m.sessions, id('stats paper')), Core.taskProgress(m.sessions, id('micro ch 11')), Core.taskProgress(m.sessions, id('micro ch 12'))], [5, 4, 2]);
+    eq(m.tasks.map(t => t.status), ['open', 'open', 'done']);
+  }],
+];
+function runTests() {
+  return TESTS.map(([name, fn]) => { try { fn(); return { name, ok: true }; } catch (e) { return { name, ok: false, err: e.message }; } });
+}
+function runTestsUI() {
+  const res = runTests(), failed = res.filter(r => !r.ok).length;
+  $('#testOut').innerHTML = res.map(r => `<li><span class="${r.ok ? 'ok' : 'bad'}">${r.ok ? 'pass' : 'FAIL'}</span><span>${esc(r.name)}${r.ok ? '' : ` — <span class="muted">${esc(r.err)}</span>`}</span></li>`).join('')
+    + `<li><span></span><b>${failed ? failed + ' failed' : 'All ' + res.length + ' checks passed'}</b></li>`;
+  return res;
+}
+
+/* ============================================================
+   10. Start-up
+   ============================================================ */
+function init() {
+  const migrated = load();
+  $('#versionLine').textContent = `FocusDeck v${APP_VERSION} · data format ${S.version} · stored only in this browser`;
+  applyTheme();
+  bindEvents();
+  bindGlass();
+  lastDay = todayKey();
+  if (S.currentTaskId) { const t = taskById(S.currentTaskId); if (!t || (t.status === 'done' && S.timer.status === 'idle')) S.currentTaskId = (openToday()[0] || {}).id || null; }
+  if (S.timer.status === 'running') {
+    if (remaining() <= 0) {
+      const kind = S.timer.kind;
+      finish('completed', { offline: true });
+      toast(`${kind === 'focus' ? 'A focus session' : 'A break'} finished while FocusDeck was closed — it’s been logged.`);
+    } else armTimers();
+  }
+  renderAll();
+  const ui = loadUI();
+  if (ui.view && ui.view !== 'today' && S.timer.status === 'idle' && VIEWS.includes(ui.view)) showView(ui.view);
+  document.documentElement.classList.add('ready');
+  if (location.hash === '#selftest') { showView('settings'); runTestsUI(); }
+  if (migrated) toast(`Brought over ${migrated.tasks} tasks and ${migrated.sessions} sessions from the previous version.`);
+  setInterval(() => {
+    if (S.timer.status !== 'running') renderClock();
+    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }
+  }, 15000);
+}
+init();
+</script>
+<div class="bootfail" role="alert"><b>FocusDeck couldn’t start.</b> Open it in an up-to-date browser. If you edited this file, update its security hash with <code>python3 tools/csp_hash.py</code> (see CHANGELOG.md).</div>
+</body>
+</html>

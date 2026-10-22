@@ -1,0 +1,5 @@
+# Keep line endings stable so the script hash in the HTML never drifts
+*.html text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.png binary
