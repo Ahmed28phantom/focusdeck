@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.5 · 2026-10-23 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.6 · 2026-10-25 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eTUHrVbV7jWwIcZ4JlYISaFWdnbCvfBqX4x4/V4PCPM='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-w1IaHrTJoh08hHG6x7tUVTEPP8wv8O0xTYzzpOhs/XE='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -888,7 +888,7 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.5';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.6';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
@@ -1075,6 +1075,13 @@ const Sound = {
     for (const n of this.nodes) { try { n.stop && n.stop(0); } catch (e) {} try { n.disconnect(); } catch (e) {} }
     this.nodes = []; this.scheduledOk = false;
   },
+  /** v5.6: when a session ends, let the scheduled chime ring out instead of cancelling it. Forgets its nodes, so the
+      next schedule can't cut it off, and says whether it rang (or the sound is off), so finish() doesn't ring again. */
+  release() {
+    const rang = this.scheduledOk && (!this.ctx || this.ctx.state === 'running');
+    this.nodes = []; this.scheduledOk = false;
+    return rang;
+  },
   playNow() {
     if (S.settings.sound === 'off') return;
     this.unlock();
@@ -1140,12 +1147,16 @@ function finish(outcome, opts = {}) {
     actual = Math.min(t.plannedSec, Core.elapsed(t, nowMs));
     endMs = nowMs;
   }
+  const rang = outcome === 'completed' && Sound.release();
   disarm();
   const kind = t.kind;
   let logged = null;
   if (outcome === 'completed' || actual >= 60) {   // under a minute and not finished = a mis-start, not worth logging
     const task = kind === 'focus' && S.currentTaskId ? taskById(S.currentTaskId) : null;
-    logged = { id: uid(), kind, taskId: task ? task.id : null, taskTitle: task ? task.title : '',
+    // v5.6: a session that runs to the end gets an id from its start, so every open tab logs the very same session
+    // (and saves the same data) instead of each tab logging its own copy
+    const id = outcome === 'completed' && t.sessionStart ? 'end-' + Math.round(t.sessionStart).toString(36) + '-' + kind : uid();
+    logged = { id, kind, taskId: task ? task.id : null, taskTitle: task ? task.title : '',
       start: Math.min(t.sessionStart || Infinity, endMs - actual * 1000), end: endMs, plannedSec: t.plannedSec, actualSec: Math.round(actual),
       outcome, rating: null, distractions: t.distractions || [], note: '' };
     S.sessions.push(logged);
@@ -1160,7 +1171,7 @@ function finish(outcome, opts = {}) {
   S.timer = idleTimer(next, S.settings);
 
   if (outcome === 'completed' && !opts.offline) {
-    if (!Sound.scheduledOk) Sound.playNow();
+    if (!rang) Sound.playNow();
     const title = kind === 'focus' ? 'Focus session done' : 'Break’s over';
     const body = kind === 'focus' ? `Time for a ${next === 'long' ? 'long' : 'short'} break.` : 'Ready for the next focus session.';
     notify(title, body);
@@ -1706,10 +1717,12 @@ async function mergeLegacy(d) {
   try { m = Core.migrateLegacy(d, Date.now()); } catch (e) { toast('Couldn’t read that data.'); return; }
   if (!m.tasks.length && !m.sessions.length) { toast('No tasks or sessions found in that data.'); return; }
   if (S.sessions.some(s => s.imported) && !await ask('Import Again?', 'You’ve imported old FocusDeck data before, so importing it again creates duplicate tasks and sessions.', 'Import Anyway', false)) return;
-  withUndo(`Imported ${m.tasks.length} tasks and ${m.sessions.length} sessions`, () => {
+  // v5.6: cleaned by normalize() like any other import, so odd estimates and tags in old data can't get in
+  const clean = normalize({ version: 5, tasks: m.tasks, sessions: m.sessions });
+  withUndo(`Imported ${clean.tasks.length} tasks and ${clean.sessions.length} sessions`, () => {
     const base = maxOrder(true) + 1;
-    m.tasks.forEach((t, i) => { t.order = base + i; });
-    S.tasks.push(...m.tasks); S.sessions.push(...m.sessions);
+    clean.tasks.forEach((t, i) => { t.order = base + i; });
+    S.tasks.push(...clean.tasks); S.sessions.push(...clean.sessions);
     if (!S.currentTaskId) S.currentTaskId = (openToday()[0] || {}).id || null;
   });
 }
@@ -1872,10 +1885,12 @@ function bindEvents() {
     const [y, m, d] = f.elements.date.value.split('-').map(Number), [hh, mm] = f.elements.time.value.split(':').map(Number);
     const start = new Date(y, m - 1, d, hh, mm).getTime();
     if (!Number.isFinite(start)) return;
-    if (start > Date.now()) { toast('That start time is in the future.'); return; }
     const n = clamp(parseInt(f.elements.count.value, 10), 1, 12, 1);
     const task = f.elements.task.value ? taskById(f.elements.task.value) : null;
     const fm = S.settings.focusMin;
+    // v5.6: the last session has to have ended by now, not just the first one started
+    const lastEnd = start + (n - 1) * (fm + S.settings.shortMin) * 60e3 + fm * 60e3;
+    if (lastEnd > Date.now()) { toast(n > 1 ? 'The last of those sessions would end in the future.' : 'That session would end in the future.'); return; }
     withUndo(`Added ${n} session${n > 1 ? 's' : ''} to history`, () => {
       for (let i = 0; i < n; i++) {
         const st = start + i * (fm + S.settings.shortMin) * 60e3;

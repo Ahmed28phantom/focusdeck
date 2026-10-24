@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.5 · October 2026
+For FocusDeck v5.6 · October 2026
 
 ## Getting started
 
@@ -126,7 +126,7 @@ History lists every focus session, newest day first, with the day's total time a
 Each row shows start–end time, task, minutes, how it ended (Full, Ended early, Discarded) and your rating. A line underneath holds the note, distractions with their times, and “added by hand” for logged sessions.
 
 - **Delete a session:** the × at the end of the row. Undo is offered.
-- **Log a missed session:** for work you did without the timer. Click **Log a Missed Session…**, set the date, start time, how many sessions (1–12) and the task, then **Add to History**. Each session uses your current focus length, with a short-break gap between them. Future times are refused.
+- **Log a missed session:** for work you did without the timer. Click **Log a Missed Session…**, set the date, start time, how many sessions (1–12) and the task, then **Add to History**. Each session uses your current focus length, with a short-break gap between them. Sessions that would end in the future are refused.
 - **Imported sessions** from v3/v4 have placeholder times (9:00 onwards) because the old versions only stored counts. A note on the day says so.
 
 ## Insights

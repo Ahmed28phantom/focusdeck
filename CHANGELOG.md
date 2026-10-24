@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.5 | 2026-10-23 | **Current.** Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
+| 5.6 | 2026-10-25 | **Current.** Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
+| 5.5 | 2026-10-23 | Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
 | 5.4 | 2026-10-22 | Liquid Glass look (same data) |
 | 5.3 | 2026-10-20 | Security hardening (same data) |
 | 5.2 | 2026-10-20 | Redesign (same data) |
@@ -15,7 +16,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.5 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.6 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -33,6 +34,22 @@ Each version keeps its data in the browser, not in the file, under its own stora
 - **Clearing the browser's site data erases everything.** Use Settings → Export backup.
 
 ---
+
+## v5.6 — 2026-10-25
+
+**Why:** four logic bugs found in a code review, each reproduced in headless Chrome. Same data format.
+
+**Fixes**
+- **The end-of-session chime rings once.** The alarm is scheduled on the audio clock when a session starts, so it rings on time in a background tab. But `finish()` called `disarm()`, which cancelled that chime just after it started (about 30 ms in) and cleared `Sound.scheduledOk`, so `finish()` always played a second chime. You heard a click and then the chime, or in a background tab the full chime and then another one when the tab caught up. The new `Sound.release()` (*Sound*) lets the scheduled chime ring out, forgets its nodes so an automatically started next session can't cut it off, and tells `finish()` (*Timer engine*) whether it rang.
+- **Two open tabs agree when a session ends.** Both tabs run the timer, so both logged the ending session, each with its own random id. Each tab then took the other's copy from the `storage` event, which left the tabs swapped and one of them out of step with what was saved. A rating given in that tab could be lost, and its next save wrote the stale copy back. A session that runs to the end now gets an id made from its start (`end-<start>-<kind>`, in `finish()`), so every tab logs the very same session and saves identical data, which the `storage` listener already ignores.
+- **Log a Missed Session refuses sessions that would end in the future.** Only the first session's start was checked, so 3 sessions starting 30 minutes ago put two of them in the future. The log form's submit handler (*Events*) now checks when the last one would end.
+- **Old data imported from Settings is cleaned.** v5.5 ran old data through `normalize()` on first open, but not when you used Settings → Import or pasted it. An estimate of −5 or 10⁹ and tags of any length went straight in (the plan then read “1000000000 sessions left”) until the next reload cleaned them. `mergeLegacy()` (*Actions*) now runs the tasks and sessions through `normalize()` first.
+
+**Code changes in the script:** new `Sound.release()`. Changed: `finish()`, `mergeLegacy()` and the log form's submit handler. `APP_VERSION` is 5.6. **The CSP hash changed** (`w1IaHrTJoh08hHG6x7tUVTEPP8wv8O0xTYzzpOhs/XE=`).
+
+**Tests:** seven new checks in `tools/check.mjs`. They cover a session ending with two tabs open, the chime ringing once and not being cut off when the next session starts by itself (with a stand-in audio context, so no sound device is needed), missed sessions that would end in the future, and pasted old data. v5.5 fails six of them, and v5.6 passes all 40 checks. The user guide now says that sessions that would *end* in the future are refused.
+
+**No change** to the data format or the storage key.
 
 ## v5.5 — 2026-10-23
 

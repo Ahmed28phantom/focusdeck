@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /* Check FocusDeck in headless Chrome: the script hash, the built-in self-check in every
    appearance, that two open tabs never overwrite each other's changes, and the parts the
-   self-check can't cover because they change data: ending sessions, undo and redo, the
-   question sheets, reordering, importing old data, Insights and the backup reminder.
+   self-check can't cover because they change data: ending sessions and the chime, undo and redo,
+   logging missed sessions, the question sheets, reordering, importing old data, Insights and the
+   backup reminder.
 
        cd tools && npm install   # once: installs puppeteer-core (no browser download)
        node tools/check.mjs      # from the repo root; exits with 1 if anything fails
@@ -116,6 +117,14 @@ async function twoTabs() {
     await a.evaluate(() => window.dispatchEvent(new Event('pagehide'))); await settle();
     const after = await taskTitles(b);
     report(after.length === 3, 'Two tabs: a tab saving on its way out keeps the other tab\'s changes', `saved: ${JSON.stringify(after)}`);
+
+    // v5.6: a session that ends with both tabs open is logged once, and both tabs keep the same data.
+    await a.evaluate(() => { S.settings.sound = 'off'; S.timer = idleTimer('short', S.settings); S.timer.plannedSec = 2; startTimer(); });
+    await new Promise(res => setTimeout(res, 2600)); await settle();
+    const [inA, inB, stored] = await Promise.all([a.evaluate(() => JSON.stringify(S)), b.evaluate(() => JSON.stringify(S)), a.evaluate(() => localStorage.getItem('focusdeck5'))]);
+    const ids = json => JSON.parse(json).sessions.map(s => s.id).join();
+    report(inA === inB && inA === stored && JSON.parse(stored).sessions.length === 1, 'Two tabs: a session that ends with both open is logged once, and the tabs agree',
+      `tab A: ${ids(inA)}; tab B: ${ids(inB)}; saved: ${ids(stored)}`);
   } finally { await ctx.close(); }
 }
 
@@ -181,6 +190,51 @@ async function endingSessions() {
     report(st.sessions.length === 1 && s.outcome === 'completed' && s.end === segStart + 1500e3 && st.timer.status === 'idle' && st.timer.kind === 'short'
       && /finished while FocusDeck was closed/.test(await toastText(p)), 'It’s logged on start-up, ending when it really ended', JSON.stringify({ n: st.sessions.length, end: s && s.end - segStart, timer: st.timer.kind }));
   });
+
+  // v5.6: the alarm is scheduled when a session starts. When the session ends, that chime should ring out once:
+  // not be cut off, and not be played a second time. A stand-in audio context counts chimes and early stops,
+  // so this needs no sound device.
+  await scenario('The end-of-session chime', async ctx => {
+    const p = await open(ctx);
+    const run = autoFocus => p.evaluate(async autoFocus => {
+      const counts = { rings: 0, cut: 0 }, param = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
+      Sound.ctx = { state: 'running', currentTime: 0, destination: {}, resume: () => Promise.resolve(),
+        createOscillator: () => ({ frequency: {}, connect() {}, disconnect() {}, start() {}, stop(when) { if (when === 0) counts.cut++; } }),
+        createGain: () => ({ gain: param, connect() {}, disconnect() {} }) };
+      const pattern = Sound.pattern;
+      Sound.pattern = function (at) { counts.rings++; return pattern.call(this, at); };
+      S.settings.sound = 'chime'; S.settings.autoFocus = autoFocus;
+      S.timer = idleTimer('short', S.settings); S.timer.plannedSec = 1;
+      startTimer();
+      await new Promise(res => setTimeout(res, 1500));
+      Sound.pattern = pattern;
+      return { ...counts, next: S.timer.kind, status: S.timer.status };
+    }, autoFocus);
+    let r = await run(false);
+    report(r.rings === 1 && r.cut === 0 && r.status === 'idle', 'The chime scheduled at the start rings once when the session ends', JSON.stringify(r));
+    await p.evaluate(() => { disarm(); S.timer = idleTimer('focus', S.settings); });
+    r = await run(true);   // one chime for the break that ended, one scheduled for the focus session that started by itself
+    report(r.rings === 2 && r.cut === 0 && r.next === 'focus' && r.status === 'running', 'Starting the next session by itself doesn’t cut the chime off', JSON.stringify(r));
+  });
+}
+
+async function missedSessions() {
+  // v5.6: only the first session's start was checked, so later ones could land in the future.
+  await scenario('Log a missed session', async ctx => {
+    const p = await open(ctx);
+    const log = count => p.evaluate(count => {
+      showView('history'); openLog();
+      const f = $('#logForm'), st = new Date(Date.now() - 40 * 60e3);
+      f.elements.date.value = ymd(st); f.elements.time.value = pad(st.getHours()) + ':' + pad(st.getMinutes());
+      f.elements.count.value = count;
+      f.requestSubmit();
+      return S.sessions.filter(s => s.end > Date.now()).length;
+    }, count);
+    const future = await log(3), refused = (await state(p)).sessions.length, toast = await toastText(p);
+    report(future === 0 && refused === 0 && /future/.test(toast), 'Sessions that would end in the future are refused', `${refused} logged; toast: ${toast}`);
+    await log(1);
+    report((await state(p)).sessions.length === 1, 'One session that has already ended is logged');
+  });
 }
 
 async function questionSheets() {
@@ -241,6 +295,19 @@ async function oldData() {
     await tap(p, '[data-view="insights"]');
     report(/Focus per day/.test(await p.$eval('#insightsBody', el => el.textContent)), 'Insights still renders');
   });
+
+  // v5.6: old data imported from Settings skipped normalize(), so its estimates and tags went in unchecked.
+  await scenario('Old data pasted into Settings', async ctx => {
+    const p = await open(ctx);
+    await tap(p, '[data-view="settings"]');
+    await p.$eval('details.paste', d => { d.open = true; });
+    await p.$eval('#pasteBox', (el, v) => { el.value = v; }, JSON.stringify({ tasks: [{ id: 't1', name: 'Negative', est: -5, tag: 'x'.repeat(500) },
+      { id: 't2', name: 'Huge', est: 1e9, tag: 'ok' }], history: [{ date: '2026-04-26', pomos: 1, sessions: [] }] }));
+    await tap(p, '[data-act="importPaste"]');
+    const tasks = (await state(p)).tasks.sort((a, b) => a.title.localeCompare(b.title));
+    report(tasks.length === 2 && tasks[0].estimate === 99 && tasks[1].estimate === null && tasks.every(t => t.tag.length <= 24),
+      'Pasted old data is cleaned like any other import', JSON.stringify(tasks.map(t => [t.title, t.estimate, t.tag.length])));
+  });
 }
 
 async function insightsByTag() {
@@ -276,6 +343,7 @@ try {
   for (const [label, features] of appearances) await selfCheck(label, features);
   await twoTabs();
   await endingSessions();
+  await missedSessions();
   await questionSheets();
   await reordering();
   await oldData();
