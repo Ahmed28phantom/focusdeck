@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.7 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.8 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fDUv3ICYzeTJhbFPMa7PM+BYqvV9eqZe+jpG0pzOeaU='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-+qZaALGGdQrY/c2v55j8ylie2sGgVbRwX43f5sVWyo8='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -835,6 +835,10 @@ const Core = {
     const tags = Object.entries(byTag).map(([tag, rs]) => ({ tag, n: rs.length, ratio: Core.median(rs) })).sort((a, b) => b.n - a.n);
     return { rows, overall: rows.length ? Core.median(rows.map(r => r.ratio)) : null, tags };
   },
+  /** v5.8: sessions still planned for these open tasks. Each counts at least 1 until it's ticked off, even past its estimate. */
+  sessionsLeft(tasks, sessions) {
+    return tasks.reduce((a, t) => a + (t.estimate ? Math.max(1, t.estimate - Core.taskProgress(sessions, t.id)) : 1), 0);
+  },
   /** v5.7: finished tasks, newest first, split into those done today and earlier ones (no date = earlier). */
   splitDone(tasks, todayK, startHour) {
     const done = tasks.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
@@ -896,7 +900,7 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.7';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.8';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
@@ -1334,7 +1338,7 @@ function renderPlan() {
   // Capacity: what's left vs your daily target, and when you'd finish at this pace.
   const target = S.settings.dailyTarget;
   const doneC = todaySessions().reduce((a, s) => a + Core.credit(s), 0);
-  const left = today.reduce((a, t) => a + (t.estimate ? Math.max(0, t.estimate - progressOf(t.id)) : 1), 0);
+  const left = Core.sessionsLeft(today, S.sessions);
   if (!today.length) { $('#capText').textContent = ''; $('#cap').innerHTML = ''; return; }
   const total = doneC + left;
   let txt = `${fmtUnits(left)} session${left === 1 ? '' : 's'} left`;
@@ -2072,6 +2076,13 @@ const TESTS = [
     const ses = [...Array(6)].map(() => fs({ taskId: 'a' })).concat([...Array(2)].map(() => fs({ taskId: 'b' })), [...Array(2)].map(() => fs({ taskId: 'c' })));
     const r = Core.estimateStats(tasks, ses);
     eq([r.rows.length, r.overall, r.tags.find(t => t.tag === 'x').ratio], [3, 1, 1.25]);
+  }],
+  ['Every open task counts at least one session left', () => {
+    const tasks = [{ id: 'a', estimate: 3 }, { id: 'b', estimate: null }, { id: 'c', estimate: 6 }, { id: 'd', estimate: 6 }];
+    const ses = [...Array(3)].map(() => fs({ taskId: 'a' })).concat(fs({ taskId: 'a', outcome: 'early', actualSec: 750 }),
+      [...Array(3)].map(() => fs({ taskId: 'c' })), fs({ taskId: 'c', outcome: 'early', actualSec: 750 }),
+      [...Array(5)].map(() => fs({ taskId: 'd' })), fs({ taskId: 'd', outcome: 'early', actualSec: 1350 }));
+    eq(tasks.map(t => Core.sessionsLeft([t], ses)), [1, 1, 2.5, 1]);   // past its estimate, no estimate, 3.5 of 6, 5.9 of 6
   }],
   ['Done today keeps only tasks finished since the day started', () => {
     const tasks = [{ id: 'a', status: 'done', doneAt: at(19, 9) }, { id: 'b', status: 'done', doneAt: at(19, 3) }, { id: 'c', status: 'done', doneAt: at(18, 15) },

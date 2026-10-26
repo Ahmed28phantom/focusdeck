@@ -306,6 +306,16 @@ async function doneToday() {
   });
 }
 
+// v5.8: a task past its estimate counted as 0 sessions left, so the plan looked finished while it was still open.
+async function capacity() {
+  await scenario('Capacity line', async ctx => {
+    const now = Date.now();
+    const p = await open(ctx, { seed: data({ tasks: [task('o', 'Overrun', { estimate: 2 })], sessions: [3, 2, 1].map(h => done(now - h * 60 * MIN, 'o')) }) });
+    const txt = await p.$eval('#capText', el => el.textContent);
+    report(/^1 session left · .* · done around/.test(txt), 'A task past its estimate still counts one session left', txt);
+  });
+}
+
 async function oldData() {
   await scenario('Old data with out-of-range values', async ctx => {
     const v4 = { settings: { pomo: 1e9, longAfter: 50, short: 5, long: 15 }, tasks: [{ id: 't1', name: 'Old task', pomosDone: 2, est: 3 }],
@@ -369,6 +379,7 @@ try {
   await questionSheets();
   await reordering();
   await doneToday();
+  await capacity();
   await oldData();
   await insightsByTag();
   await backupReminder();

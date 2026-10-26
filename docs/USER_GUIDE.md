@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.7 · October 2026
+For FocusDeck v5.8 · October 2026
 
 ## Getting started
 
@@ -91,7 +91,7 @@ The selected task has an indigo bar on its left and the word *Selected*. Each ro
 
 Above the Today list, one line and one bar answer: “Can I get through this plan today?”
 
-- **Sessions left:** the remaining estimate of every Today task. A task with no estimate counts as 1.
+- **Sessions left:** the remaining estimate of every Today task. A task with no estimate counts as 1, and so does a task that has used up its estimate but isn't ticked off yet.
 - **Over your target / room for N more:** sessions done today plus sessions left, compared with your daily target.
 - **Done around:** when you would finish if you kept going now, including breaks.
 - **The bar:** solid = done today, striped = still planned, black tick = your daily target. If the stripes run past the tick, the plan is bigger than your day — move something to Later.

@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.7 | 2026-10-27 | **Current.** Today's Done list shows only tasks finished today (same data) |
+| 5.8 | 2026-10-27 | **Current.** The capacity line counts tasks that ran past their estimate (same data) |
+| 5.7 | 2026-10-27 | Today's Done list shows only tasks finished today (same data) |
 | 5.6 | 2026-10-25 | Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
 | 5.5 | 2026-10-23 | Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
 | 5.4 | 2026-10-22 | Liquid Glass look (same data) |
@@ -17,7 +18,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.7 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.8 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -36,6 +37,19 @@ Each version keeps its data in the browser, not in the file, under its own stora
 
 ---
 
+## v5.8 — 2026-10-27
+
+**Why:** the capacity line above the Today list counted an open task that had gone past its estimate as 0 sessions left. A plan of overrun tasks read “0 sessions left” with no finish time, so the plan looked lightest exactly when you were behind. Same data format.
+
+**Fix**
+- **Every open Today task counts as at least 1 session left,** until you tick it off. A task with no estimate already counted as 1. A partly done task still counts what's left of its estimate (3.5 of 6 is 2.5 left), but a nearly finished one counts 1 rather than a fraction (5.9 of 6 used to read 0.1). The bar and the *done around* time follow from the same number. In the README's demo, the line now reads “3 sessions left · room for 2 more” instead of “1 session left · room for 4 more”.
+
+**Code changes in the script:** new `Core.sessionsLeft()` (*Core*), used by `renderPlan()`. `APP_VERSION` is 5.8. **The CSP hash changed** (`+qZaALGGdQrY/c2v55j8ylie2sGgVbRwX43f5sVWyo8=`).
+
+**Tests:** a new self-check test covers a task past its estimate, one with no estimate, a partly done one and a nearly finished one. A new check in `tools/check.mjs` seeds a plan with one overrun task. v5.7 fails it (“0 sessions left”), and v5.8 passes all 45 checks (the self-check now has 30 tests). The Today screenshot was retaken.
+
+**No change** to the data format or the storage key.
+
 ## v5.7 — 2026-10-27
 
 **Why:** the Done box on the Today tab showed the last 30 finished tasks from any day, so it filled up with old work that had nothing to do with today. Same data format.
@@ -47,7 +61,7 @@ Each version keeps its data in the browser, not in the file, under its own stora
 
 **Code changes in the script:** new `Core.splitDone()` (*Core*), the `doneShown` and `DONE_PAGE` state, and the `doneEarlier` action. Changed: `renderPlan()` and the Done box markup. `APP_VERSION` is 5.7. **The CSP hash changed** (`fDUv3ICYzeTJhbFPMa7PM+BYqvV9eqZe+jpG0pzOeaU=`).
 
-**Tests:** a new self-check test covers the split, including the day-start hour and tasks with no date. Five new checks in `tools/check.mjs` cover the Done box, paging through earlier tasks and reopening the only task done today. v5.6 fails the Done-box checks, and v5.7 passes all 45 checks (the self-check now has 29 tests).
+**Tests:** a new self-check test covers the split, including the day-start hour and tasks with no date. Five new checks in `tools/check.mjs` cover the Done box, paging through earlier tasks and reopening the only task done today. v5.6 fails the Done-box checks, and v5.7 passes all 44 checks (the self-check now has 29 tests). (Corrected in v5.8: this first said 45.)
 
 **No change** to the data format or the storage key.
 
