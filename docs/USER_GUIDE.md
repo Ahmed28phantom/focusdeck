@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.6 · October 2026
+For FocusDeck v5.7 · October 2026
 
 ## Getting started
 
@@ -60,7 +60,9 @@ Use Finish Early when you did real work but stopped, and Discard for a false sta
 
 ## Planning your day
 
-The Plan section on the Today tab holds three lists: **Today** (what you mean to finish today), **Later** (parked tasks) and **Done**. Sessions you run count toward the task selected at the time.
+The Plan section on the Today tab holds three lists: **Today** (what you mean to finish today), **Later** (parked tasks) and **Done today**. Sessions you run count toward the task selected at the time.
+
+**Done today** lists only what you finished since your day started (see *Day starts at* in Settings), so yesterday's tasks drop off on their own. To see older ones, press **Show N earlier** at the bottom of the box. It adds 30 at a time, and **Hide earlier** puts them away again. Nothing is deleted: that's also where you reopen an older task.
 
 ### Adding tasks
 

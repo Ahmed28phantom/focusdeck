@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.6 · 2026-10-25 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.7 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-w1IaHrTJoh08hHG6x7tUVTEPP8wv8O0xTYzzpOhs/XE='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fDUv3ICYzeTJhbFPMa7PM+BYqvV9eqZe+jpG0pzOeaU='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -353,6 +353,7 @@ details.sub>summary span{color:var(--ink2);font-weight:400}
 details.sub>summary::after{content:"";margin-left:auto;width:8px;height:8px;border:solid var(--ink3);border-width:0 2px 2px 0;transform:rotate(-45deg);transition:transform .2s}
 details.sub[open]>summary::after{transform:rotate(45deg)}
 details.sub .quick{border-top:.5px solid var(--sep)}
+.earlier{margin:0;padding:0 16px;min-height:48px;display:flex;align-items:center;border-top:.5px solid var(--sep);font-size:.9375rem}
 .keys{font-size:.8125rem;color:var(--ink2);margin:24px 4px 0;line-height:2}
 @media (hover:none) and (pointer:coarse){ .keys{display:none} }   /* no keyboard, no shortcut hints */
 
@@ -559,8 +560,9 @@ dialog[open]{animation:sheetIn .22s ease-out}
     <ul class="tasks" id="listLater"></ul>
   </details>
   <details class="sub" id="doneBox">
-    <summary>Done <span id="doneCount"></span></summary>
+    <summary>Done today <span id="doneCount"></span></summary>
     <ul class="tasks" id="listDone"></ul>
+    <p class="earlier" id="doneEarlierRow"><button class="link" data-act="doneEarlier" id="doneEarlier"></button></p>
   </details>
   <p class="keys"><kbd>Space</kbd> start or pause · <kbd>N</kbd> new task · <kbd>D</kbd> note a distraction · <kbd id="undoKey">Ctrl Z</kbd> undo · <button class="link" data-act="shortcuts">All shortcuts</button></p>
 </section>
@@ -833,6 +835,12 @@ const Core = {
     const tags = Object.entries(byTag).map(([tag, rs]) => ({ tag, n: rs.length, ratio: Core.median(rs) })).sort((a, b) => b.n - a.n);
     return { rows, overall: rows.length ? Core.median(rows.map(r => r.ratio)) : null, tags };
   },
+  /** v5.7: finished tasks, newest first, split into those done today and earlier ones (no date = earlier). */
+  splitDone(tasks, todayK, startHour) {
+    const done = tasks.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    const isToday = t => t.doneAt > 0 && dayKey(t.doneAt, startHour) === todayK;
+    return { today: done.filter(isToday), earlier: done.filter(t => !isToday(t)) };
+  },
   /** Share of focus sessions run to the end (imported ones excluded — their outcome is unknown). */
   completion(sessions) {
     const f = sessions.filter(s => s.kind === 'focus' && !s.imported);
@@ -888,7 +896,7 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.6';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.7';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
@@ -899,6 +907,8 @@ let S;                      // the whole app state
 let currentView = 'today';
 let attention = '';         // tab-title nudge after a session ends in the background
 let editId = null, histDays = 14, insightRange = 30, lastDay = '';
+let doneShown = 0;          // how many earlier finished tasks the Done box shows under today's
+const DONE_PAGE = 30;
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 const durFor = (kind, s) => (kind === 'focus' ? s.focusMin : kind === 'short' ? s.shortMin : s.longMin) * 60;
@@ -1305,15 +1315,21 @@ function taskRow(t, where) {
 
 function renderPlan() {
   const today = openToday(), later = openLater();
-  const done = S.tasks.filter(t => t.status === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
+  const done = Core.splitDone(S.tasks, todayKey(), S.settings.dayStartHour);
+  doneShown = Math.min(doneShown, done.earlier.length);
+  const doneRows = [...done.today, ...done.earlier.slice(0, doneShown)];
   $('#listToday').innerHTML = today.length ? today.map(t => taskRow(t, 'today')).join('')
     : S.tasks.length ? `<li class="empty">Nothing planned yet. Type a task above, or move one up from Later.</li>`
     : `<li class="empty"><b>Plan your first task.</b> Type it above and press Return. Add <code>#tag</code> to group it and <code>~4</code> to estimate 4 sessions, e.g. <code>Read chapter 3 #study ~2</code>. Then press its play button to start.</li>`;
   $('#listLater').innerHTML = later.length ? later.map(t => taskRow(t, 'later')).join('') : `<li class="empty">Park tasks here that aren’t for today.</li>`;
-  $('#listDone').innerHTML = done.length ? done.map(t => taskRow(t, 'done')).join('') : `<li class="empty">Finished tasks show up here.</li>`;
+  $('#listDone').innerHTML = doneRows.length ? doneRows.map(t => taskRow(t, 'done')).join('') : `<li class="empty">Nothing finished yet today.</li>`;
   $('#laterCount').textContent = later.length ? `(${later.length})` : '';
-  $('#doneCount').textContent = done.length ? `(${S.tasks.filter(t => t.status === 'done').length})` : '';
-  $('#doneBox').hidden = !done.length;
+  $('#doneCount').textContent = done.today.length ? `(${done.today.length})` : '';
+  $('#doneBox').hidden = !done.today.length && !done.earlier.length;
+  // v5.7: earlier finished tasks stay out of the way until asked for, a page at a time.
+  const notShown = done.earlier.length - doneShown;
+  $('#doneEarlierRow').hidden = !done.earlier.length;
+  $('#doneEarlier').textContent = !doneShown ? `Show ${done.earlier.length} earlier` : notShown ? `Show ${Math.min(DONE_PAGE, notShown)} more` : 'Hide earlier';
 
   // Capacity: what's left vs your daily target, and when you'd finish at this pace.
   const target = S.settings.dailyTarget;
@@ -1775,6 +1791,12 @@ const ACTIONS = {
   openLog,
   cancelLog: () => { $('#logForm').hidden = true; },
   histMore: () => { histDays += 14; renderHistory(); },
+  doneEarlier: () => {
+    const n = Core.splitDone(S.tasks, todayKey(), S.settings.dayStartHour).earlier.length;
+    doneShown = doneShown >= n ? 0 : doneShown + DONE_PAGE;
+    renderPlan();
+    announce(doneShown ? `Showing ${Math.min(doneShown, n)} of ${n} earlier finished tasks.` : 'Earlier finished tasks hidden.');
+  },
   range: b => { insightRange = +b.dataset.r; renderInsights(); },
   testSound: () => { Sound.unlock(); Sound.playNow(); if (S.settings.sound === 'off') toast('Sound is off.'); },
   exportJson: () => {
@@ -2051,7 +2073,13 @@ const TESTS = [
     const r = Core.estimateStats(tasks, ses);
     eq([r.rows.length, r.overall, r.tags.find(t => t.tag === 'x').ratio], [3, 1, 1.25]);
   }],
-  ['Completion rate ignores imported sessions', () => eq(Core.completion([fs(), fs({ outcome: 'early' }), fs({ imported: true })]), 0.5)],
+  ['Done today keeps only tasks finished since the day started', () => {
+    const tasks = [{ id: 'a', status: 'done', doneAt: at(19, 9) }, { id: 'b', status: 'done', doneAt: at(19, 3) }, { id: 'c', status: 'done', doneAt: at(18, 15) },
+      { id: 'd', status: 'done', doneAt: null }, { id: 'e', status: 'open', doneAt: null }, { id: 'f', status: 'done', doneAt: at(19, 11) }];
+    const r = Core.splitDone(tasks, '2026-10-19', 4);   // 3 am belongs to the day before when days start at 4
+    eq([r.today.map(t => t.id), r.earlier.map(t => t.id)], [['f', 'a'], ['b', 'c', 'd']]);
+  }],
+  ['Completion rate ignores imported sessions',() => eq(Core.completion([fs(), fs({ outcome: 'early' }), fs({ imported: true })]), 0.5)],
   ['A crafted backup cannot inject HTML', () => {
     const bad = '"><img src=x onerror=alert(1)>';
     const s = normalize({ version: 5, tasks: [{ id: bad, title: bad, estimate: bad, status: 'open' }], sessions: [{ id: bad, start: 1, taskId: bad, rating: bad }] });

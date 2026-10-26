@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.6 | 2026-10-25 | **Current.** Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
+| 5.7 | 2026-10-27 | **Current.** Today's Done list shows only tasks finished today (same data) |
+| 5.6 | 2026-10-25 | Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
 | 5.5 | 2026-10-23 | Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
 | 5.4 | 2026-10-22 | Liquid Glass look (same data) |
 | 5.3 | 2026-10-20 | Security hardening (same data) |
@@ -16,7 +17,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.6 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.7 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -34,6 +35,21 @@ Each version keeps its data in the browser, not in the file, under its own stora
 - **Clearing the browser's site data erases everything.** Use Settings → Export backup.
 
 ---
+
+## v5.7 — 2026-10-27
+
+**Why:** the Done box on the Today tab showed the last 30 finished tasks from any day, so it filled up with old work that had nothing to do with today. Same data format.
+
+**Changes**
+- **Done today.** The box is now called *Done today* and lists only the tasks finished since your day started. It uses the *Day starts at* setting, so a task ticked at 1 am with a 4 am start still counts as the day before. Its count is today's tasks, not every task you've ever finished. If nothing is finished today yet, it says so.
+- **Earlier tasks are one click away.** A *Show N earlier* link at the bottom of the box adds older finished tasks, newest first, 30 at a time (*Show 30 more*). Once they're all showing, the link reads *Hide earlier*. That's where you reopen or edit an older task, as before. Each row still says when it was done.
+- **Nothing else changes.** Tasks aren't moved or deleted. Insights, Log a Missed Session's task menu and backups still use every finished task.
+
+**Code changes in the script:** new `Core.splitDone()` (*Core*), the `doneShown` and `DONE_PAGE` state, and the `doneEarlier` action. Changed: `renderPlan()` and the Done box markup. `APP_VERSION` is 5.7. **The CSP hash changed** (`fDUv3ICYzeTJhbFPMa7PM+BYqvV9eqZe+jpG0pzOeaU=`).
+
+**Tests:** a new self-check test covers the split, including the day-start hour and tasks with no date. Five new checks in `tools/check.mjs` cover the Done box, paging through earlier tasks and reopening the only task done today. v5.6 fails the Done-box checks, and v5.7 passes all 45 checks (the self-check now has 29 tests).
+
+**No change** to the data format or the storage key.
 
 ## v5.6 — 2026-10-25
 

@@ -284,6 +284,28 @@ async function reordering() {
   });
 }
 
+async function doneToday() {
+  await scenario('Done today', async ctx => {
+    const now = Date.now();
+    const earlier = [...Array(32)].map((_, i) => task('e' + i, 'Earlier ' + i, { status: 'done', doneAt: now - (i + 1) * DAY }));
+    const p = await open(ctx, { seed: data({ tasks: [task('t', 'Today', { status: 'done', doneAt: now }), ...earlier, task('o', 'Open')] }) });
+    await p.$eval('#doneBox', d => { d.open = true; });
+    const look = () => p.evaluate(() => [$$('#listDone li[data-id]').length, $('#doneCount').textContent, $('#doneEarlier').textContent]);
+    let v = await look();
+    report(v.join('|') === '1|(1)|Show 32 earlier', 'The Done box shows only tasks finished today', v.join(' · '));
+    await tap(p, '#doneEarlier'); v = await look();
+    report(v[0] === 31 && v[2] === 'Show 2 more', 'Show earlier adds older tasks a page at a time', v.join(' · '));
+    await tap(p, '#doneEarlier'); v = await look();
+    report(v[0] === 33 && v[2] === 'Hide earlier', 'The last page shows every finished task', v.join(' · '));
+    await tap(p, '#doneEarlier'); v = await look();
+    report(v[0] === 1, 'Hide earlier goes back to today’s', v.join(' · '));
+
+    await p.evaluate(() => $('#listDone li[data-id="t"] .check').click());   // reopen it
+    const after = await p.evaluate(() => [$('#doneBox').hidden, $('#listDone').textContent.trim(), !!$('#listToday li[data-id="t"]')]);
+    report(after.join('|') === 'false|Nothing finished yet today.|true', 'With nothing done today, earlier tasks are still one click away', after.join(' · '));
+  });
+}
+
 async function oldData() {
   await scenario('Old data with out-of-range values', async ctx => {
     const v4 = { settings: { pomo: 1e9, longAfter: 50, short: 5, long: 15 }, tasks: [{ id: 't1', name: 'Old task', pomosDone: 2, est: 3 }],
@@ -346,6 +368,7 @@ try {
   await missedSessions();
   await questionSheets();
   await reordering();
+  await doneToday();
   await oldData();
   await insightsByTag();
   await backupReminder();
