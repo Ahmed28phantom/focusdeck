@@ -45,13 +45,14 @@ async function open(ctx, { hash = '', seed = null } = {}) {
   page.on('pageerror', e => errors.push(e.message));
   page.nativeDialogs = 0;
   page.on('dialog', d => { page.nativeDialogs++; d.dismiss(); });
-  if (seed) await page.evaluateOnNewDocument(items => {
-    if (sessionStorage.getItem('check-seeded')) return;
-    sessionStorage.setItem('check-seeded', '1');
+  const seeding = seed && await page.evaluateOnNewDocument(items => {
     localStorage.clear();
     for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
   }, seed);
   await page.goto(APP + hash, { waitUntil: 'load' });
+  // Removed rather than guarded by a sessionStorage flag: on CI's Linux Chrome a quick reload sometimes
+  // didn't see the flag, so it seeded again and wiped what the app had saved.
+  if (seeding) await page.removeScriptToEvaluateOnNewDocument(seeding.identifier);
   const ready = await page.evaluate(() => document.documentElement.classList.contains('ready'));
   if (!ready || errors.length) throw new Error(`FocusDeck didn't start. ${errors.join('; ') || 'Is the CSP hash current?'}`);
   return page;
