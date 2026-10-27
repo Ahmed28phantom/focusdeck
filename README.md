@@ -8,11 +8,11 @@ A Pomodoro timer, day planner and focus log in a single HTML file. Download it, 
 
 - **Timer that keeps real time.** Focus, short and long breaks. It survives reloads and sleeping laptops, and logs a session that ended while the tab was closed.
 - **Honest credit.** A full session counts as 1, *Finish Early* counts the fraction you did, *Discard* counts nothing.
-- **Day planning.** Today and Later lists, quick add with `#tag ~estimate`, reordering by mouse, keyboard or touch, and a capacity line that tells you whether today's plan fits your daily target.
+- **Day planning.** Today and Later lists, quick add with `#tag ~estimate`, reordering by mouse, keyboard or touch, and a capacity line that tells you whether today's plan fits your daily target, and when you'd finish at your usual pace. Tasks left from earlier days are flagged once a day, so Today doesn't silt up.
 - **Focus helpers.** Press `D` to park a distraction mid-session; rate each session Scattered, Steady or Deep.
 - **History.** Every session, day by day. Delete mistakes, log sessions you forgot to time.
 - **Insights.** Focus per day, when in the week you focus best, time per tag, how your estimates compare with reality, and session quality.
-- **Your data stays yours.** Everything is stored in your browser. Export a JSON backup or a CSV of every session (ready for Excel or pandas). If two weeks pass without a backup, FocusDeck reminds you.
+- **Your data stays yours.** Everything is stored in your browser. Export a JSON backup or a CSV of every session (ready for Excel or pandas). In Chrome and Edge it can also save a backup into a folder you pick every day, such as one that syncs to iCloud or Google Drive. If two weeks pass without a backup, FocusDeck reminds you.
 - **Open it in several tabs** and they stay in sync.
 - **Light and dark,** following your system. Works at phone width with a bottom tab bar.
 
@@ -22,7 +22,7 @@ A Pomodoro timer, day planner and focus log in a single HTML file. Download it, 
 
 ## Get started
 
-1. Download [`FocusDeck.html`](FocusDeck.html) (on the file page, use **Download raw file**).
+1. **[Download FocusDeck.html](https://github.com/Ahmed28phantom/focusdeck/releases/latest/download/FocusDeck.html)** from the latest release. Earlier versions are on the [Releases](https://github.com/Ahmed28phantom/focusdeck/releases) page.
 2. Double-click it to open it in your browser. Chrome, Edge, Safari and Firefox all work.
 3. Type a task, press Return, press its play button.
 
@@ -80,7 +80,7 @@ After a visual change, retake the screenshots in `docs/screenshots/`. It also ne
 node tools/screenshots.mjs
 ```
 
-Versioning rules and the history of every release are in [CHANGELOG.md](CHANGELOG.md).
+To release, bump the version, add a CHANGELOG entry, and push a tag such as `v5.9`. GitHub runs the checks and publishes the Release with `FocusDeck.html` attached (`.github/workflows/release.yml`). Versioning rules and the history of every release are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Design
 

@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.8 | 2026-10-27 | **Current.** The capacity line counts tasks that ran past their estimate (same data) |
+| 5.9 | 2026-10-27 | **Current.** Tasks left from earlier days, daily backup to a folder, finish time at your usual pace; GitHub Releases (same data) |
+| 5.8 | 2026-10-27 | The capacity line counts tasks that ran past their estimate (same data) |
 | 5.7 | 2026-10-27 | Today's Done list shows only tasks finished today (same data) |
 | 5.6 | 2026-10-25 | Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
 | 5.5 | 2026-10-23 | Fixes for two tabs and imports; reorder by keyboard, backup reminder, time by tag (same data) |
@@ -18,7 +19,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.8 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.9 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -36,6 +37,22 @@ Each version keeps its data in the browser, not in the file, under its own stora
 - **Clearing the browser's site data erases everything.** Use Settings → Export backup.
 
 ---
+
+## v5.9 — 2026-10-27
+
+**Why:** three sources of friction from a product review, plus a proper way to download the app. Same data format: tasks gain an optional `plannedAt`, which earlier v5 files keep and ignore.
+
+**New**
+- **Tasks left from earlier days.** Unfinished tasks stayed on Today forever, so they piled up the way finished ones did before v5.7. Each task now remembers when it was put on Today (`plannedAt`: on quick add, the Today button, dragging, the edit sheet's Plan menu and reopening; tasks from before v5.9 use when they were created). A Today task from an earlier day shows its age (*from yesterday*, *from Mon*, *from 12 Oct*). On the first open of a new day, a banner says how many there are, with **Keep in Today** and **Move to Later** (undoable). Either answer hides it until the next day. That choice is remembered per browser, under `focusdeck5-ui`, not in the data.
+- **Daily backup to a folder** (Chrome and Edge, with the File System Access API). Settings → Your data → *Daily backup to a folder* → **Choose Folder…**. FocusDeck writes `focusdeck-auto-<date>.json` on the first open of each day and rewrites it after every focus session, keeps the newest 7, and leaves other files alone. The folder's handle is kept in IndexedDB (`focusdeck5-backup`). After a browser restart, the browser may need a click to allow the folder again, so a message offers **Save**, even later the same day; otherwise the saves after each session would stop until the next day. A daily backup updates *Last exported*, so the two-week reminder stays quiet. Nothing leaves the computer: the folder is yours, and syncing it is up to you.
+- **Finish time at your usual pace.** Once three or more finished tasks have estimates and their median actual ÷ estimate is off by at least 10%, the capacity line adds a second time, e.g. “done around 23:10 (23:45 at your usual 1.3×)”. It scales the rest of each estimate by that ratio, still counting at least 1 per open task.
+- **GitHub Releases.** Pushing a version tag now runs the checks and publishes a Release with `FocusDeck.html` attached (`.github/workflows/release.yml`). `tools/release_notes.py` first makes sure the tag, `APP_VERSION`, line 2 and this changelog agree, and uses this entry as the notes. README → Get started links straight to the latest file. `check.yml` now runs on branch pushes only, since tags get the same checks in the release.
+
+**Code changes in the script:** new `Core.carriedOver()`, `Core.usualRatio()` and `Core.autoBackupsToRemove()` (*Core*). `Core.sessionsLeft()` takes a ratio. New `fmtSince()` (*Utilities*), `AutoBackup` and `backupJson()` (*State & storage*), `syncAuto()`, and the `carryKeep`, `carryLater`, `autoChoose` and `autoOff` actions. Changed: `normalize()` (keeps `plannedAt` only as a real date), `taskRow()`, `renderPlan()`, `finish()` (rewrites today's backup), `syncSettings()`, `init()` and the day-change checks. `APP_VERSION` is 5.9. **The CSP hash changed** (`vaSiLlL0atsh8hp2L1A6wJ5eSyeJ2F+UcmyNDUxpIKA=`).
+
+**Tests:** three new self-check tests: the usual ratio, which backup files are pruned, and which tasks count as carried over (with the day-start hour). The sessions-left test also covers estimates at a ratio. Ten new checks in `tools/check.mjs` cover the usual-pace time, the banner (Move to Later, Keep, and staying hidden after a reload), and the daily backup with a stand-in folder (IndexedDB on a `file://` page, the first save of the day, pruning, the rewrite after a session, and the permission question after a restart). v5.9 passes all 55 checks (the self-check now has 33 tests). The real folder picker needs a person to click through it, so the checks don't cover it; it was tried by hand in Chrome before release.
+
+**No change** to the storage key, and no data migration.
 
 ## v5.8 — 2026-10-27
 
@@ -276,7 +293,8 @@ Full rebuild. Same single-file, double-click-to-open app.
 
 ## How to version from now on
 
-- **Edit `FocusDeck.html` in place;** git keeps every earlier version. For a release, bump `APP_VERSION` and the line-2 comment, commit, and tag it (`git tag v5.5`).
+- **Edit `FocusDeck.html` in place;** git keeps every earlier version. For a release, bump `APP_VERSION` and the line-2 comment, add the entry below, commit, then tag and push the tag (`git tag -a v5.9 -m "FocusDeck v5.9"`, `git push origin v5.9`).
+- **Pushing a version tag publishes the GitHub Release** (`.github/workflows/release.yml`): it runs the checks, refuses if the tag, `APP_VERSION`, line 2 and the newest entry here disagree (`tools/release_notes.py`), and attaches `FocusDeck.html` with that entry as the notes.
 - **After editing the script, update its hash:** `python3 tools/csp_hash.py FocusDeck.html` (`--check` only reports). Then run `node tools/check.mjs`, or open the file and run the self-check in light and dark.
 - **Fixes and small features** get a minor bump (5.1 → 5.2).
 - **Changes to the stored data format** get a major bump (→ v6). Use a new storage key, plus an import from `focusdeck5`.

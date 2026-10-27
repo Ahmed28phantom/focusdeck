@@ -317,6 +317,80 @@ async function capacity() {
   });
 }
 
+// v5.9: with three or more finished tasks, the capacity line also gives the finish time at your usual estimate ratio.
+async function usualPace() {
+  await scenario('Capacity at your usual pace', async ctx => {
+    const now = Date.now(), s = [];
+    ['a', 'b', 'c'].forEach((id, i) => { for (let j = 0; j < 3; j++) s.push(done(now - (10 + i * 3 + j) * 60 * MIN, id)); });
+    const finished = ['a', 'b', 'c'].map(id => task(id, 'Done ' + id, { status: 'done', estimate: 2, doneAt: now - DAY }));
+    const p = await open(ctx, { seed: data({ tasks: [...finished, task('n', 'Next', { estimate: 4 })], sessions: s }) });
+    const [txt, title] = await p.$eval('#capText', el => [el.textContent, el.title]);
+    report(/^4 sessions left · .* · done around .+ \(.+ at your usual 1\.5×\)$/.test(txt) && /1\.5×/.test(title), 'The capacity line adds the finish time at your usual estimate ratio', txt);
+  });
+}
+
+// v5.9: tasks left on Today from earlier days get a once-a-day question.
+async function carryOver() {
+  const tasks = () => [task('old', 'Old one', { plannedAt: Date.now() - 2 * DAY }), task('new', 'New one', { order: 1, plannedAt: Date.now() })];
+  const look = p => p.evaluate(() => [$('#carry').hidden, $('#carryText').textContent, !!$('#listToday li[data-id="old"]'), !!$('#listLater li[data-id="old"]'),
+    $('#listToday li[data-id="old"] .tmeta')?.textContent.includes('from ') ?? null, $('#listToday li[data-id="new"] .tmeta')?.textContent.includes('from ') ?? null]);
+  await scenario('Tasks left from earlier days', async ctx => {
+    const p = await open(ctx, { seed: data({ tasks: tasks() }) });
+    let v = await look(p);
+    report(v.join('|') === 'false|1 task left from earlier days.|true|false|true|false', 'Tasks left from earlier days get a banner and show their age', v.join(' · '));
+    await tap(p, '[data-act="carryLater"]'); v = await look(p);
+    report(v[0] && !v[2] && v[3] && /Moved 1 task to Later/.test(await toastText(p)), 'Move to Later moves them and says so, with Undo', v.join(' · '));
+    await p.reload({ waitUntil: 'load' }); v = await look(p);
+    report(v[0] && v[3], 'The banner stays gone for the rest of the day', v.join(' · '));
+  });
+  await scenario('Keeping tasks from earlier days', async ctx => {
+    const p = await open(ctx, { seed: data({ tasks: tasks() }) });
+    await tap(p, '[data-act="carryKeep"]');
+    await p.reload({ waitUntil: 'load' });
+    const v = await look(p);
+    report(v[0] && v[2], 'Keep in Today keeps them and hides the banner for the day', v.join(' · '));
+  });
+}
+
+// v5.9: the daily backup to a folder, with a stand-in folder (the real one needs a person to pick it).
+async function dailyBackup() {
+  await scenario('Daily backup to a folder', async ctx => {
+    const p = await open(ctx, { seed: data({ tasks: [task('a', 'Essay')], currentTaskId: 'a', sessions: [0, 1, 2].map(i => done(Date.now() - (i + 2) * 60 * MIN, 'a')) }) });
+    const stored = await p.evaluate(async () => { await AutoBackup.store('readwrite', kv => kv.put({ name: 'probe' }, 'probe')); return (await AutoBackup.store('readonly', kv => kv.get('probe'))).name; });
+    report(stored === 'probe', 'The folder can be remembered in IndexedDB on a file:// page', String(stored));
+
+    const setUp = permission => p.evaluate(permission => {
+      window.__files = window.__files || Object.fromEntries([...Array(9)].map((_, i) => [`focusdeck-auto-2026-01-${String(10 + i).padStart(2, '0')}.json`, '{}']).concat([['notes.txt', 'mine']]));
+      let perm = permission;
+      AutoBackup.dir = { name: 'Backups', queryPermission: async () => perm, requestPermission: async () => (perm = 'granted'),
+        getFileHandle: async n => ({ createWritable: async () => { let buf = ''; return { write: async d => { buf += d; }, close: async () => { __files[n] = buf; } }; } }),
+        entries: async function* () { for (const n of Object.keys(__files)) yield [n, {}]; }, removeEntry: async n => { delete __files[n]; } };
+      saveUI({ lastAutoAt: null, lastBackupAt: null });
+    }, permission);
+    const files = () => p.evaluate(() => { const today = `focusdeck-auto-${todayKey()}.json`, f = __files[today];
+      return { autos: Object.keys(__files).filter(n => n.startsWith('focusdeck-auto-')).length, notes: 'notes.txt' in __files, sessions: f ? JSON.parse(f).sessions.length : -1, backedUp: !!loadUI().lastBackupAt }; });
+
+    await setUp('granted');
+    await p.evaluate(() => AutoBackup.daily()); await settle();
+    let f = await files();
+    report(f.sessions === 3 && f.autos === 7 && f.notes && f.backedUp, 'The first open of the day saves a backup and keeps the newest 7', JSON.stringify(f));
+    await tap(p, '[data-view="settings"]');
+    const status = await p.$eval('#autoStatus', el => el.textContent);
+    report(/Saving to “Backups”\. Last saved today\./.test(status), 'Settings shows the folder and when it last saved', status);
+
+    await p.evaluate(() => { S.timer = { ...S.timer, kind: 'focus', status: 'running', plannedSec: 1500, elapsedBefore: 0, segStart: Date.now() - 600e3, sessionStart: Date.now() - 600e3 }; finish('early'); });
+    await settle(); f = await files();
+    report(f.sessions === 4, 'A finished focus session rewrites today’s file', JSON.stringify(f));
+
+    await setUp('prompt');
+    // Already saved today, but the browser restarted and wants permission again: it must still ask.
+    await p.evaluate(() => { delete __files[`focusdeck-auto-${todayKey()}.json`]; saveUI({ lastAutoAt: Date.now() }); AutoBackup.daily(); }); await settle();
+    const asked = await toastText(p);
+    await tap(p, '[data-act="toastAction"]'); await settle(); f = await files();
+    report(/Save today’s backup to “Backups”\?/.test(asked) && f.sessions === 4, 'After a restart it asks first, even later the same day, and saves on Save', `${asked}; ${JSON.stringify(f)}`);
+  });
+}
+
 async function oldData() {
   await scenario('Old data with out-of-range values', async ctx => {
     const v4 = { settings: { pomo: 1e9, longAfter: 50, short: 5, long: 15 }, tasks: [{ id: 't1', name: 'Old task', pomosDone: 2, est: 3 }],
@@ -381,6 +455,9 @@ try {
   await reordering();
   await doneToday();
   await capacity();
+  await usualPace();
+  await carryOver();
+  await dailyBackup();
   await oldData();
   await insightsByTag();
   await backupReminder();

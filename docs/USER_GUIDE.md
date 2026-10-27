@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.8 · October 2026
+For FocusDeck v5.9 · October 2026
 
 ## Getting started
 
@@ -64,6 +64,8 @@ The Plan section on the Today tab holds three lists: **Today** (what you mean to
 
 **Done today** lists only what you finished since your day started (see *Day starts at* in Settings), so yesterday's tasks drop off on their own. To see older ones, press **Show N earlier** at the bottom of the box. It adds 30 at a time, and **Hide earlier** puts them away again. Nothing is deleted: that's also where you reopen an older task.
 
+**Tasks left from earlier days.** A task stays on Today until you tick it off or move it, so unfinished work carries over to the next day. Such a task shows when you planned it, such as *from yesterday*, *from Mon* or *from 12 Oct*. The first time you open FocusDeck on a new day, a banner above the list says how many there are: **Keep in Today** leaves them where they are, and **Move to Later** parks them all (Undo is offered). Either way, the banner doesn't come back until the next day.
+
 ### Adding tasks
 
 Type in the *New task* row and press Return. Two shortcuts work inside the title:
@@ -94,6 +96,7 @@ Above the Today list, one line and one bar answer: “Can I get through this pla
 - **Sessions left:** the remaining estimate of every Today task. A task with no estimate counts as 1, and so does a task that has used up its estimate but isn't ticked off yet.
 - **Over your target / room for N more:** sessions done today plus sessions left, compared with your daily target.
 - **Done around:** when you would finish if you kept going now, including breaks.
+- **At your usual pace:** once at least three finished tasks had estimates, and they typically took at least 10% more or less than estimated, a second time follows in brackets, e.g. *(00:40 at your usual 1.3×)*. It scales what's left of each estimate by that ratio, the same median Insights shows under Estimates vs reality. Hover the line for a reminder.
 - **The bar:** solid = done today, striped = still planned, black tick = your daily target. If the stripes run past the tick, the plan is bigger than your day — move something to Later.
 
 ## During and after a session
@@ -169,6 +172,8 @@ Light and dark appearance follow your system setting; since v5.2 there is no the
 
 Everything sits in this browser only. Clearing the browser's site data erases it, so export a backup every week or two and keep it somewhere safe, such as Google Drive. If two weeks go by without one, FocusDeck reminds you when you open it (at most once a week), with a **Back Up** button. Settings shows when you last exported.
 
+**Daily backup to a folder (Chrome and Edge on a computer).** In Settings → Your data → *Daily backup to a folder*, press **Choose Folder…** and pick a folder, ideally one that syncs, such as iCloud Drive, Google Drive or Dropbox. FocusDeck saves `focusdeck-auto-<date>.json` there right away, then on the first open of each day, and rewrites that day's file after every focus session, so each day's file ends up holding how that day ended. It keeps the newest 7 and never touches other files in the folder. Each file is a normal backup: use Restore to load one. After you restart the browser, it may ask once for permission to use the folder again. FocusDeck shows a message with a **Save** button for that. A daily backup counts as a backup, so the two-week reminder stays quiet. **Turn Off** stops it; files already saved stay.
+
 | Action | Where | What happens |
 | --- | --- | --- |
 | Backup → Export | Settings → Your data | Downloads `focusdeck-backup-<date>.json` with all tasks, sessions and settings |
@@ -176,6 +181,7 @@ Everything sits in this browser only. Clearing the browser's site data erases it
 | Sessions as CSV → Export | Settings → Your data | Downloads every session as a spreadsheet: day, start, end, task, tag, minutes, outcome, credit, rating, distraction count, note |
 | Import from the old FocusDeck | Settings → Your data | Adds v3/v4 data from this browser to what you already have. Warns before importing twice. |
 | Paste its data | Settings → Your data | The same import, for old data from another browser (instructions are under the link) |
+| Daily backup to a folder | Settings → Your data | Chrome and Edge: saves a backup into a folder you pick every day, keeping the newest 7 (see above) |
 | Protect from clean-up | Settings → Your data | Asks the browser not to clear FocusDeck's data when the disk runs low on space. The browser decides, and Chrome may say no for a file opened from disk. It doesn't stop you clearing site data yourself, so keep backing up. |
 | Erase… | Settings → Your data | Deletes everything after asking. You can undo straight after. |
 

@@ -1,9 +1,11 @@
-# Runs tools/check.mjs on every push and pull request: the CSP hash, the self-check in each
-# appearance, two open tabs, and the flows that change data. See README → Editing the code.
+# Runs tools/check.mjs on every push to a branch and every pull request: the CSP hash, the self-check
+# in each appearance, two open tabs, and the flows that change data. See README → Editing the code.
+# Version tags run the same checks in release.yml before publishing, so they're left out here.
 name: Check
 
 on:
   push:
+    branches: ['**']
   pull_request:
 
 jobs:

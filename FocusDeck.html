@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.8 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.9 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-+qZaALGGdQrY/c2v55j8ylie2sGgVbRwX43f5sVWyo8='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vaSiLlL0atsh8hp2L1A6wJ5eSyeJ2F+UcmyNDUxpIKA='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -306,6 +306,8 @@ select.field{appearance:none;-webkit-appearance:none;padding-right:30px;
 
 /* Plan */
 .cap{position:relative;margin:0 4px 12px}
+.carry{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;padding:10px 12px 10px 16px;margin-bottom:12px}
+.carry p{margin:0;font-size:.9375rem}
 .capbar{height:6px;background:var(--fill2);border-radius:999px;overflow:hidden;display:flex}
 .capbar .d{background:var(--accent)}
 .capbar .p{background:repeating-linear-gradient(-45deg,var(--accent) 0 2px,transparent 2px 5px);opacity:.55}
@@ -550,6 +552,7 @@ dialog[open]{animation:sheetIn .22s ease-out}
 
   <div class="shead"><h2>Plan</h2><span class="meta" id="capText"></span></div>
   <div class="cap" id="cap"></div>
+  <div class="card carry" id="carry" hidden><p id="carryText"></p><span class="inline"><button class="btn small" data-act="carryKeep">Keep in Today</button><button class="btn small" data-act="carryLater">Move to Later</button></span></div>
   <div class="card">
     <form class="quick" data-plan="today"><span class="plus" aria-hidden="true">+</span><input id="quickToday" maxlength="160" autocomplete="off" aria-label="New task for today" placeholder="New task"></form>
     <ul class="tasks" id="listToday"></ul>
@@ -630,6 +633,7 @@ dialog[open]{animation:sheetIn .22s ease-out}
   <h2 class="gtitle">Your data</h2>
   <div class="card rows">
     <div class="srow"><span>Backup <small>tasks, sessions and settings as JSON. <span id="backupAge"></span></small></span><span class="inline"><button class="btn small" data-act="exportJson">Export</button><button class="btn small" data-act="importJson">Restore…</button></span></div>
+    <div class="srow" id="autoRow"><span>Daily backup to a folder <small id="autoStatus"></small></span><span class="inline"><button class="btn small" id="autoChoose" data-act="autoChoose">Choose Folder…</button><button class="btn small" id="autoOff" data-act="autoOff" hidden>Turn Off</button></span></div>
     <div class="srow"><span>Sessions as CSV <small>for Excel or pandas</small></span><button class="btn small" data-act="exportCsv">Export</button></div>
     <div class="srow"><span>Import from the old FocusDeck <small>reads v3/v4 data from this browser</small></span><button class="btn small" data-act="importLegacy">Import</button></div>
     <details class="paste"><summary>Old version used in a different browser? Paste its data</summary>
@@ -730,6 +734,11 @@ function fmtDayLabel(k, todayK) {
   if (k === todayK) return 'Today';
   if (k === addDays(todayK, -1)) return 'Yesterday';
   return keyToDate(k).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+/** v5.9: short label for the day a task was planned: yesterday, Mon (this past week), 12 Oct. */
+function fmtSince(k, todayK) {
+  if (k === addDays(todayK, -1)) return 'yesterday';
+  return keyToDate(k).toLocaleDateString('en-GB', k > addDays(todayK, -7) ? { weekday: 'short' } : { day: 'numeric', month: 'short' });
 }
 const MAX_ESTIMATE = 99;   // quick add's ~NN takes up to two digits; the edit sheet and imports allow the same
 const RATING = { 1: 'Scattered', 2: 'Steady', 3: 'Deep' };
@@ -835,9 +844,23 @@ const Core = {
     const tags = Object.entries(byTag).map(([tag, rs]) => ({ tag, n: rs.length, ratio: Core.median(rs) })).sort((a, b) => b.n - a.n);
     return { rows, overall: rows.length ? Core.median(rows.map(r => r.ratio)) : null, tags };
   },
-  /** v5.8: sessions still planned for these open tasks. Each counts at least 1 until it's ticked off, even past its estimate. */
-  sessionsLeft(tasks, sessions) {
-    return tasks.reduce((a, t) => a + (t.estimate ? Math.max(1, t.estimate - Core.taskProgress(sessions, t.id)) : 1), 0);
+  /** v5.8: sessions still planned for these open tasks. Each counts at least 1 until it's ticked off, even past its estimate.
+      v5.9: `ratio` scales the estimates, e.g. 1.3 when tasks usually take 1.3× what you estimate. */
+  sessionsLeft(tasks, sessions, ratio = 1) {
+    return tasks.reduce((a, t) => a + (t.estimate ? Math.max(1, t.estimate * ratio - Core.taskProgress(sessions, t.id)) : 1), 0);
+  },
+  /** v5.9: your usual actual ÷ estimate, once at least `minTasks` finished tasks show it's off by a tenth or more; else null. */
+  usualRatio(tasks, sessions, minTasks = 3) {
+    const st = Core.estimateStats(tasks, sessions);
+    return st.rows.length >= minTasks && Math.abs(st.overall - 1) >= 0.1 ? st.overall : null;
+  },
+  /** v5.9: FocusDeck's own daily backup files beyond the newest `keep`. Anything else in the folder is left alone. */
+  autoBackupsToRemove(names, keep) {
+    return names.filter(n => /^focusdeck-auto-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort().reverse().slice(keep);
+  },
+  /** v5.9: open Today tasks put there before today began (plannedAt; createdAt for tasks from before v5.9). */
+  carriedOver(tasks, todayK, startHour) {
+    return tasks.filter(t => t.status === 'open' && t.today && dayKey(t.plannedAt || t.createdAt, startHour) < todayK);
   },
   /** v5.7: finished tasks, newest first, split into those done today and earlier ones (no date = earlier). */
   splitDone(tasks, todayK, startHour) {
@@ -900,7 +923,7 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.8';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.9';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
@@ -952,7 +975,8 @@ function normalize(d) {
   s.tasks = (Array.isArray(d.tasks) ? d.tasks : []).filter(t => t && typeof t === 'object').map(t => ({
     ...t, id: safeId(t.id), title: String(t.title ?? 'Untitled').slice(0, 120), tag: String(t.tag ?? '').slice(0, 24),
     estimate: num(t.estimate, 0) >= 1 ? Math.min(MAX_ESTIMATE, Math.round(num(t.estimate))) : null, status: t.status === 'done' ? 'done' : 'open', today: t.today !== false,
-    order: num(t.order, 0), createdAt: num(t.createdAt, Date.now()), doneAt: num(t.doneAt) }));
+    order: num(t.order, 0), createdAt: num(t.createdAt, Date.now()), doneAt: num(t.doneAt),
+    plannedAt: Math.abs(num(t.plannedAt, NaN)) <= MAX_DATE_MS ? num(t.plannedAt) : null }));
   // v5.5: session times are held to what the timer can produce: a start that's a real date, a planned length
   // over 0 and at most a day, time spent from 0 up to the planned length, and an end no earlier than the start.
   // A negative planned length gave negative credit, and a huge time spent hung Insights (splitByHour).
@@ -1196,6 +1220,7 @@ function finish(outcome, opts = {}) {
     if (auto && nowMs - endMs < 60e3) startTimer(endMs);
   }
   save(); renderAll();
+  if (logged && kind === 'focus' && outcome !== 'abandoned') AutoBackup.refresh().then(syncAuto);   // v5.9
   return logged;
 }
 
@@ -1306,12 +1331,14 @@ function taskRow(t, where) {
   if (where !== 'done') acts += `<button data-act="focusTask" aria-label="Focus on ${nm}" title="Focus on this task">${PLAY_ICON}</button>`;
   if (where === 'today') acts += `<button data-act="plan" data-to="later" aria-label="Move ${nm} to Later">Later</button>`;
   if (where === 'later') acts += `<button data-act="plan" data-to="today" aria-label="Move ${nm} to Today">Today</button>`;
+  const planK = where === 'today' && dayKey(t.plannedAt || t.createdAt, S.settings.dayStartHour), tk = todayKey();
+  const ageInfo = planK && planK < tk ? `<span>from ${fmtSince(planK, tk)}</span>` : '';
   const doneInfo = where === 'done' && t.doneAt ? `<span>done ${fmtDayLabel(dayKey(t.doneAt, S.settings.dayStartHour), todayKey()).toLowerCase()}</span>` : '';
   return `<li class="task${isCur ? ' current' : ''}${t.status === 'done' ? ' is-done' : ''}" data-id="${t.id}"${where !== 'done' ? ' draggable="true"' : ''}>
     <button class="check" data-act="toggleDone" aria-pressed="${t.status === 'done'}" aria-label="${t.status === 'done' ? 'Mark as not done' : 'Mark as done'}: ${nm}"></button>
     <button class="tbody" data-act="edit" title="Edit task">
       <span class="ttitle">${esc(t.title)}</span>
-      <span class="tmeta"><span class="num">${fmtUnits(p)}${est ? ' / ' + est : ''}</span>${est ? `<span class="mini${p > est ? ' over' : ''}"><i style="width:${pct}%"></i></span>` : ''}${t.tag ? `<span>#${esc(t.tag)}</span>` : ''}${doneInfo}${isCur ? '<span class="now">Selected</span>' : ''}</span>
+      <span class="tmeta"><span class="num">${fmtUnits(p)}${est ? ' / ' + est : ''}</span>${est ? `<span class="mini${p > est ? ' over' : ''}"><i style="width:${pct}%"></i></span>` : ''}${t.tag ? `<span>#${esc(t.tag)}</span>` : ''}${ageInfo}${doneInfo}${isCur ? '<span class="now">Selected</span>' : ''}</span>
     </button>
     ${acts ? `<div class="tact">${acts}</div>` : ''}
   </li>`;
@@ -1330,6 +1357,11 @@ function renderPlan() {
   $('#laterCount').textContent = later.length ? `(${later.length})` : '';
   $('#doneCount').textContent = done.today.length ? `(${done.today.length})` : '';
   $('#doneBox').hidden = !done.today.length && !done.earlier.length;
+  // v5.9: once a day, offer to move tasks left over from earlier days out of Today.
+  const tk = todayKey(), carried = Core.carriedOver(today, tk, S.settings.dayStartHour);
+  $('#carry').hidden = !carried.length || loadUI().carryReviewed === tk;
+  const fromYesterday = carried.every(t => dayKey(t.plannedAt || t.createdAt, S.settings.dayStartHour) === addDays(tk, -1));
+  $('#carryText').textContent = `${plural(carried.length, 'task')} left from ${fromYesterday ? 'yesterday' : 'earlier days'}.`;
   // v5.7: earlier finished tasks stay out of the way until asked for, a page at a time.
   const notShown = done.earlier.length - doneShown;
   $('#doneEarlierRow').hidden = !done.earlier.length;
@@ -1343,14 +1375,27 @@ function renderPlan() {
   const total = doneC + left;
   let txt = `${fmtUnits(left)} session${left === 1 ? '' : 's'} left`;
   txt += total > target + 0.05 ? ` · ${fmtUnits(total - target)} over your target of ${target}` : total < target - 0.05 ? ` · room for ${fmtUnits(target - total)} more` : ' · right on target';
-  if (left > 0) {
-    const st = S.settings, avgBreak = (st.shortMin * (st.longEvery - 1) + st.longMin) / st.longEvery;
-    let mins = left * st.focusMin + Math.max(0, Math.ceil(left) - 1) * avgBreak;
+  const st = S.settings, avgBreak = (st.shortMin * (st.longEvery - 1) + st.longMin) / st.longEvery;
+  const endAround = n => {   // when n more sessions would be done, breaks included, from where the timer is now
+    let mins = n * st.focusMin + Math.max(0, Math.ceil(n) - 1) * avgBreak;
     if (S.timer.status !== 'idle') mins += S.timer.kind === 'focus' ? -Core.elapsed(S.timer, Date.now()) / 60 : remaining() / 60;
     const endAt = Date.now() + Math.max(0, mins) * 60e3;
-    txt += ` · done around ${fmtTime(endAt)}${dayKey(endAt, 0) !== dayKey(Date.now(), 0) ? ' tomorrow' : ''}`;
+    return fmtTime(endAt) + (dayKey(endAt, 0) !== dayKey(Date.now(), 0) ? ' tomorrow' : '');
+  };
+  // v5.9: when finished tasks show your estimates usually run long (or short), also say when you'd finish at that pace.
+  const ratio = Core.usualRatio(S.tasks, S.sessions);
+  let why = '';
+  if (left > 0) {
+    const plain = endAround(left);
+    txt += ` · done around ${plain}`;
+    const usual = ratio && endAround(Core.sessionsLeft(today, S.sessions, ratio));
+    if (usual && usual !== plain) {
+      txt += ` (${usual} at your usual ${ratio.toFixed(1)}×)`;
+      why = `Your finished tasks took ${ratio.toFixed(1)}× their estimates (the median). See Insights → Estimates vs reality.`;
+    }
   }
   $('#capText').textContent = txt;
+  $('#capText').title = why;
   const scale = Math.max(target, total) || 1;
   $('#cap').innerHTML = `<div class="capbar"><span class="d" style="width:${doneC / scale * 100}%"></span><span class="p" style="width:${left / scale * 100}%"></span></div>
     <span class="tgt" style="left:calc(${Math.min(100, target / scale * 100)}% - 1px)" title="Daily target: ${target}"></span>`;
@@ -1550,6 +1595,17 @@ function syncSettings() {
   $('#backupAge').textContent = !last ? 'Not exported from this browser yet.'
     : `Last exported ${lk === tk ? 'today' : lk === addDays(tk, -1) ? 'yesterday' : 'on ' + fmtDayLabel(lk, tk)}.`;
   syncPersist();
+  syncAuto();
+}
+/** v5.9: the daily-backup row in Settings. */
+async function syncAuto() {
+  if (!AutoBackup.supported) { $('#autoStatus').textContent = 'Needs Chrome or Edge on a computer.'; $('#autoChoose').hidden = true; return; }
+  const d = AutoBackup.dir, last = loadUI().lastAutoAt, tk = todayKey(), lk = last && dayKey(last, S.settings.dayStartHour);
+  let p = 'granted'; if (d) try { p = await AutoBackup.permission(false); } catch (e) { p = 'denied'; }
+  $('#autoStatus').textContent = !d ? 'Saves a backup there every day and keeps the last 7. Pick a folder that syncs, such as iCloud Drive or Google Drive.'
+    : `Saving to “${d.name}”${p === 'granted' ? '' : ' (needs your permission again)'}. ${!last ? 'Nothing saved yet.' : `Last saved ${lk === tk ? 'today' : lk === addDays(tk, -1) ? 'yesterday' : 'on ' + fmtDayLabel(lk, tk)}.`}`;
+  $('#autoChoose').textContent = d ? 'Change…' : 'Choose Folder…';
+  $('#autoOff').hidden = !d;
 }
 /** v5.5: whether the browser has agreed not to clear FocusDeck's data when disk space runs low. */
 async function syncPersist() {
@@ -1608,6 +1664,70 @@ const VIEWS = ['today', 'history', 'insights', 'settings'];
 const UI_KEY = 'focusdeck5-ui';   // last view and backup dates for this browser; not part of the data format or backups
 function loadUI() { try { return JSON.parse(localStorage.getItem(UI_KEY)) || {}; } catch (e) { return {}; } }
 function saveUI(patch) { try { localStorage.setItem(UI_KEY, JSON.stringify({ ...loadUI(), ...patch })); } catch (e) {} }
+const backupJson = () => JSON.stringify({ ...S, appVersion: APP_VERSION, exportedAt: new Date().toISOString() }, null, 1);
+
+/** v5.9: a daily backup into a folder you pick (Chrome and Edge; the File System Access API). One file per day,
+    rewritten after each focus session, so yesterday's file holds how yesterday ended; the newest 7 are kept.
+    The folder's handle lives in IndexedDB. After a browser restart the browser may want permission again,
+    which only a click can give, so FocusDeck asks in a message. */
+const AutoBackup = {
+  supported: typeof window.showDirectoryPicker === 'function',
+  dir: null,
+  KEEP: 7,
+  store(mode, fn) {
+    return new Promise((res, rej) => {
+      const open = indexedDB.open('focusdeck5-backup', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('kv');
+      open.onerror = () => rej(open.error);
+      open.onsuccess = () => {
+        const tx = open.result.transaction('kv', mode), req = fn(tx.objectStore('kv'));
+        tx.oncomplete = () => { open.result.close(); res(req.result); };
+        tx.onerror = () => { open.result.close(); rej(tx.error); };
+      };
+    });
+  },
+  async load() { try { this.dir = (await this.store('readonly', kv => kv.get('dir'))) || null; } catch (e) { this.dir = null; } },
+  async choose() {
+    const dir = await window.showDirectoryPicker({ id: 'focusdeck-backup', mode: 'readwrite' });
+    await this.store('readwrite', kv => kv.put(dir, 'dir'));
+    this.dir = dir;
+  },
+  async off() { this.dir = null; try { await this.store('readwrite', kv => kv.delete('dir')); } catch (e) {} },
+  /** 'granted', 'prompt' or 'denied'; `ask` (only from a click) shows the browser's question. */
+  async permission(ask) {
+    const o = { mode: 'readwrite' };
+    let p = await this.dir.queryPermission(o);
+    if (p === 'prompt' && ask) p = await this.dir.requestPermission(o);
+    return p;
+  },
+  async write() {
+    const now = Date.now(), name = `focusdeck-auto-${todayKey()}.json`;
+    const w = await (await this.dir.getFileHandle(name, { create: true })).createWritable();
+    await w.write(backupJson()); await w.close();
+    const names = [];
+    for await (const [n] of this.dir.entries()) names.push(n);
+    for (const n of Core.autoBackupsToRemove(names, this.KEEP)) await this.dir.removeEntry(n);
+    saveUI({ lastBackupAt: now, lastAutoAt: now });
+  },
+  /** Write today's file if the folder is allowed; quietly, since it runs after every focus session. */
+  async refresh() {
+    if (!this.dir) return;
+    try { if (await this.permission(false) === 'granted') await this.write(); } catch (e) { console.warn('Daily backup failed', e); }
+  },
+  /** On start-up and when the day changes: today's first backup. If the browser wants permission again (after a
+      restart), ask even if today's file exists, or the saves after each session would quietly stop until tomorrow. */
+  async daily() {
+    if (!this.dir) return;
+    let p; try { p = await this.permission(false); } catch (e) { p = 'denied'; }
+    const last = loadUI().lastAutoAt;
+    if (p === 'granted') return last && dayKey(last, S.settings.dayStartHour) === todayKey() ? undefined : this.refresh().then(syncAuto);
+    if (p === 'prompt') toast(`Save today’s backup to “${this.dir.name}”?`, { label: 'Save', fn: async () => {
+      try { if (await this.permission(true) !== 'granted') return; await this.write(); toast(`Saved to “${this.dir.name}”.`); }
+      catch (e) { toast('Couldn’t save the backup there. Check the folder in Settings.'); }
+      syncAuto();
+    } });
+  },
+};
 function showView(v, opts = {}) {
   currentView = v;
   saveUI({ view: v });
@@ -1630,7 +1750,7 @@ function toggleDone(id) {
       if (S.currentTaskId === id && !busyFocus) S.currentTaskId = (openToday()[0] || {}).id || null;
     });
   } else {
-    t.status = 'open'; t.doneAt = null; t.today = true; t.order = maxOrder(true) + 1;
+    t.status = 'open'; t.doneAt = null; t.today = true; t.plannedAt = Date.now(); t.order = maxOrder(true) + 1;
     save(); renderAll();
   }
 }
@@ -1780,6 +1900,7 @@ const ACTIONS = {
   plan: (b, id) => {
     const t = taskById(id); if (!t) return;
     t.today = b.dataset.to === 'today'; t.order = maxOrder(t.today) + 1;
+    if (t.today) t.plannedAt = Date.now();
     save(); renderAll();
     toast(t.today ? `Moved to today: ${t.title}` : `Moved to later: ${t.title}`);
   },
@@ -1795,6 +1916,16 @@ const ACTIONS = {
   openLog,
   cancelLog: () => { $('#logForm').hidden = true; },
   histMore: () => { histDays += 14; renderHistory(); },
+  carryKeep: () => { saveUI({ carryReviewed: todayKey() }); renderPlan(); },
+  carryLater: () => {
+    const moved = Core.carriedOver(openToday(), todayKey(), S.settings.dayStartHour);
+    saveUI({ carryReviewed: todayKey() });
+    withUndo(`Moved ${plural(moved.length, 'task')} to Later`, () => {
+      moved.forEach(t => { t.today = false; t.order = maxOrder(false) + 1; });
+      const busyFocus = S.timer.kind === 'focus' && S.timer.status !== 'idle';
+      if (!busyFocus && moved.some(t => t.id === S.currentTaskId)) S.currentTaskId = (openToday()[0] || {}).id || null;
+    });
+  },
   doneEarlier: () => {
     const n = Core.splitDone(S.tasks, todayKey(), S.settings.dayStartHour).earlier.length;
     doneShown = doneShown >= n ? 0 : doneShown + DONE_PAGE;
@@ -1803,8 +1934,15 @@ const ACTIONS = {
   },
   range: b => { insightRange = +b.dataset.r; renderInsights(); },
   testSound: () => { Sound.unlock(); Sound.playNow(); if (S.settings.sound === 'off') toast('Sound is off.'); },
+  autoChoose: async () => {
+    try { await AutoBackup.choose(); } catch (e) { if (e.name !== 'AbortError') toast('That folder can’t be used. Try another one.'); return; }
+    try { await AutoBackup.write(); toast(`Backups will be saved to “${AutoBackup.dir.name}” every day.`); }
+    catch (e) { toast('Couldn’t write to that folder. Try another one.'); }
+    syncSettings();
+  },
+  autoOff: async () => { await AutoBackup.off(); syncSettings(); toast('Daily backup is off. Files already saved stay in the folder.'); },
   exportJson: () => {
-    download(`focusdeck-backup-${todayKey()}.json`, JSON.stringify({ ...S, appVersion: APP_VERSION, exportedAt: new Date().toISOString() }, null, 1), 'application/json');
+    download(`focusdeck-backup-${todayKey()}.json`, backupJson(), 'application/json');
     saveUI({ lastBackupAt: Date.now() }); syncSettings();
   },
   persist: async () => {
@@ -1866,7 +2004,7 @@ function bindEvents() {
     const inp = f.querySelector('input'), p = Core.parseQuick(inp.value);
     if (!p.title) return;
     const today = f.dataset.plan === 'today';
-    const t = { id: uid(), title: p.title.slice(0, 120), tag: p.tag, estimate: p.estimate, status: 'open', today, order: maxOrder(today) + 1, createdAt: Date.now(), doneAt: null };
+    const t = { id: uid(), title: p.title.slice(0, 120), tag: p.tag, estimate: p.estimate, status: 'open', today, order: maxOrder(today) + 1, createdAt: Date.now(), doneAt: null, plannedAt: today ? Date.now() : null };
     S.tasks.push(t);
     if (today && !S.currentTaskId) S.currentTaskId = t.id;
     inp.value = '';
@@ -1886,6 +2024,7 @@ function bindEvents() {
     if (t.status === 'open') {   // v5.5: Position places it in its list (in the other one, if Plan changed)
       const today = f.elements.plan.value === 'today', list = (today ? openToday() : openLater()).filter(x => x !== t);
       list.splice(clamp(parseInt(f.elements.pos.value, 10), 0, list.length, list.length), 0, t);
+      if (today && !t.today) t.plannedAt = Date.now();
       t.today = today; list.forEach((x, k) => { x.order = k; });
     }
     $('#taskDialog').close();
@@ -1979,6 +2118,7 @@ function bindEvents() {
       const li = e.target.closest('li[data-id]');
       let idx = list.length;
       if (li && li.dataset.id !== dragId) { const i = list.findIndex(t => t.id === li.dataset.id), r = li.getBoundingClientRect(); idx = e.clientY < r.top + r.height / 2 ? i : i + 1; }
+      if (toToday && !task.today) task.plannedAt = Date.now();
       task.today = toToday;
       list.splice(idx, 0, task); list.forEach((t, i) => { t.order = i; });
       dragId = null; clearMarks(); save(); renderAll();
@@ -2024,7 +2164,7 @@ function bindEvents() {
     attention = '';
     if (S.timer.status === 'running') tick();
     renderClock();
-    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }
+    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); AutoBackup.daily(); }
   });
   window.addEventListener('pagehide', save);
   // v5.5: another tab saved. Take its data, so this tab never writes an older copy over it.
@@ -2083,6 +2223,23 @@ const TESTS = [
       [...Array(3)].map(() => fs({ taskId: 'c' })), fs({ taskId: 'c', outcome: 'early', actualSec: 750 }),
       [...Array(5)].map(() => fs({ taskId: 'd' })), fs({ taskId: 'd', outcome: 'early', actualSec: 1350 }));
     eq(tasks.map(t => Core.sessionsLeft([t], ses)), [1, 1, 2.5, 1]);   // past its estimate, no estimate, 3.5 of 6, 5.9 of 6
+    eq(tasks.map(t => Math.round(Core.sessionsLeft([t], ses, 1.5) * 10) / 10), [1, 1, 5.5, 3.1]);   // at 1.5×: 4.5 vs 3.5 done, 9 vs 3.5 and 5.9
+  }],
+  ['The usual estimate ratio needs three finished tasks and a real difference', () => {
+    const tasks = ['a', 'b', 'c'].map(id => ({ id, status: 'done', estimate: 2 }));
+    const ses = n => [...Array(n)].map(() => fs({ taskId: 'a' })).concat([...Array(n)].map(() => fs({ taskId: 'b' })), [...Array(n)].map(() => fs({ taskId: 'c' })));
+    eq([Core.usualRatio(tasks, ses(3)), Core.usualRatio(tasks.slice(0, 2), ses(3)), Core.usualRatio(tasks, ses(2))], [1.5, null, null]);
+  }],
+  ['Daily backups keep the newest 7 and leave other files alone', () => {
+    const names = [...Array(9)].map((_, i) => `focusdeck-auto-2026-10-${String(11 + i).padStart(2, '0')}.json`).concat('notes.txt', 'focusdeck-backup-2026-10-01.json');
+    eq(Core.autoBackupsToRemove(names, 7), ['focusdeck-auto-2026-10-12.json', 'focusdeck-auto-2026-10-11.json']);
+  }],
+  ['Tasks planned before today count as carried over', () => {
+    const t = (id, o) => ({ id, status: 'open', today: true, createdAt: at(1), plannedAt: null, ...o });
+    const tasks = [t('a', { plannedAt: at(18) }), t('b', { plannedAt: at(19, 9) }), t('c', { plannedAt: at(19, 3) }),   // 3 am is still the 18th when days start at 4
+      t('d'), t('e', { today: false }), t('f', { status: 'done' }), t('g', { createdAt: at(19, 8) })];
+    eq(Core.carriedOver(tasks, '2026-10-19', 4).map(x => x.id), ['a', 'c', 'd']);
+    eq([fmtSince('2026-10-18', '2026-10-19'), fmtSince('2026-10-15', '2026-10-19'), fmtSince('2026-10-01', '2026-10-19')], ['yesterday', 'Thu', '1 Oct']);
   }],
   ['Done today keeps only tasks finished since the day started', () => {
     const tasks = [{ id: 'a', status: 'done', doneAt: at(19, 9) }, { id: 'b', status: 'done', doneAt: at(19, 3) }, { id: 'c', status: 'done', doneAt: at(18, 15) },
@@ -2230,9 +2387,10 @@ function init() {
     saveUI({ remindedAt: Date.now() });
     toast(bk.lastBackupAt ? `It’s been ${due} days since your last backup.` : 'You haven’t backed up yet. Your data lives only in this browser.', { label: 'Back Up', fn: ACTIONS.exportJson });
   }
+  AutoBackup.load().then(() => AutoBackup.daily());   // v5.9
   setInterval(() => {
     if (S.timer.status !== 'running') renderClock();
-    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); }
+    if (lastDay !== todayKey()) { lastDay = todayKey(); renderAll(); AutoBackup.daily(); }
   }, 15000);
 }
 init();

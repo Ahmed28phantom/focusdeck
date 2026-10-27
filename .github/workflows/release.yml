@@ -1,0 +1,45 @@
+# Publishes a GitHub Release when a version tag (v5.9, v5.10, …) is pushed: runs the same checks as
+# check.yml, makes sure the tag, APP_VERSION and the newest CHANGELOG.md entry agree
+# (tools/release_notes.py), then attaches FocusDeck.html with that changelog entry as the notes.
+# README → Get started links to the latest release's FocusDeck.html.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the version and write the notes
+        run: python3 tools/release_notes.py "$GITHUB_REF_NAME" > notes.md
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Install the check's dependencies
+        run: npm ci
+        working-directory: tools
+
+      # Same as check.yml: re-allow the user namespaces Chrome's sandbox needs on Ubuntu 24.04.
+      - name: Let Chrome use its sandbox
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+
+      - name: Check FocusDeck
+        run: node tools/check.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Publish the release
+        run: gh release create "$GITHUB_REF_NAME" FocusDeck.html --verify-tag --title "FocusDeck $GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
