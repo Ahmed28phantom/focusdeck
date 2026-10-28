@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Print the release notes for a version tag, after checking the tag, the app and the changelog agree.
 
-The Release workflow (.github/workflows/release.yml) runs this when a tag like v5.9 is pushed:
+The Release workflow (.github/workflows/release.yml) runs this when a tag like v5.10.1 is pushed:
 
-    python3 tools/release_notes.py v5.9 > notes.md
+    python3 tools/release_notes.py v5.10.1 > notes.md
 
 It exits with 1, saying why, unless APP_VERSION in FocusDeck.html, the comment on its line 2 and the
-newest "## vX.Y — date" entry in CHANGELOG.md all match the tag. The notes are that changelog entry.
+newest "## vX.Y.Z — date" entry in CHANGELOG.md all match the tag. The notes are that changelog entry.
+Releases up to v5.10 had two numbers (vX.Y); those tags are still accepted, so their releases can be re-run.
 
 No third-party packages needed.
 """
@@ -18,8 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> None:
-    if len(sys.argv) != 2 or not re.fullmatch(r"v\d+\.\d+", sys.argv[1]):
-        sys.exit("Usage: release_notes.py vX.Y")
+    if len(sys.argv) != 2 or not re.fullmatch(r"v\d+\.\d+(?:\.\d+)?", sys.argv[1]):
+        sys.exit("Usage: release_notes.py vX.Y.Z")
     tag = sys.argv[1]
     version = tag[1:]
 
@@ -33,7 +34,7 @@ def main() -> None:
         problems.append(f"line 2 of FocusDeck.html doesn't say FocusDeck v{version}")
 
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    entries = list(re.finditer(r"^## v(\d+(?:\.\d+)?) — .*$", changelog, flags=re.M))
+    entries = list(re.finditer(r"^## v(\d+(?:\.\d+){0,2}) — .*$", changelog, flags=re.M))
     if not entries or entries[0].group(1) != version:
         problems.append(f"the newest CHANGELOG.md entry is v{entries[0].group(1) if entries else '?'}, not v{version}")
     if problems:

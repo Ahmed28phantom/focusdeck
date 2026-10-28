@@ -80,7 +80,7 @@ After a visual change, retake the screenshots in `docs/screenshots/`. It also ne
 node tools/screenshots.mjs
 ```
 
-To release, bump the version, add a CHANGELOG entry, and push a tag such as `v5.9`. GitHub runs the checks and publishes the Release with `FocusDeck.html` attached (`.github/workflows/release.yml`). Versioning rules and the history of every release are in [CHANGELOG.md](CHANGELOG.md).
+To release, bump the version, add a CHANGELOG entry, and push a tag such as `v5.10.1`. GitHub runs the checks and publishes the Release with `FocusDeck.html` attached (`.github/workflows/release.yml`). Versioning rules and the history of every release are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Design
 

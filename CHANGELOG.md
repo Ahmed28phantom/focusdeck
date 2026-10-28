@@ -310,9 +310,11 @@ Full rebuild. Same single-file, double-click-to-open app.
 
 ## How to version from now on
 
-- **Edit `FocusDeck.html` in place;** git keeps every earlier version. For a release, bump `APP_VERSION` and the line-2 comment, add the entry below, commit, then tag and push the tag (`git tag -a v5.9 -m "FocusDeck v5.9"`, `git push origin v5.9`).
+- **Edit `FocusDeck.html` in place;** git keeps every earlier version. For a release, bump `APP_VERSION` and the line-2 comment, add the entry below, commit, then tag and push the tag (`git tag -a v5.10.1 -m "FocusDeck v5.10.1"`, `git push origin v5.10.1`).
 - **Pushing a version tag publishes the GitHub Release** (`.github/workflows/release.yml`): it runs the checks, refuses if the tag, `APP_VERSION`, line 2 and the newest entry here disagree (`tools/release_notes.py`), and attaches `FocusDeck.html` with that entry as the notes.
 - **After editing the script, update its hash:** `python3 tools/csp_hash.py FocusDeck.html` (`--check` only reports). Then run `node tools/check.mjs`, or open the file and run the self-check in light and dark.
-- **Fixes and small features** get a minor bump (5.1 → 5.2).
-- **Changes to the stored data format** get a major bump (→ v6). Use a new storage key, plus an import from `focusdeck5`.
+- **Versions have three numbers, major.minor.patch,** from the release after v5.10. Releases up to v5.10 had two (v5.10 is the same as 5.10.0).
+- **Fixes only** get a patch bump (5.10.0 → 5.10.1).
+- **New features or changes, with the same data,** get a minor bump and reset the patch (5.10.1 → 5.11.0).
+- **Changes to the stored data format** get a major bump (→ 6.0.0). Use a new storage key, plus an import from `focusdeck5`.
 - **Add an entry at the top of this file** for each release: what changed, where in the code, and why.

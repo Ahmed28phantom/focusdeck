@@ -1,4 +1,4 @@
-# Publishes a GitHub Release when a version tag (v5.9, v5.10, …) is pushed: runs the same checks as
+# Publishes a GitHub Release when a version tag (v5.10.1, v5.11.0, …) is pushed: runs the same checks as
 # check.yml, makes sure the tag, APP_VERSION and the newest CHANGELOG.md entry agree
 # (tools/release_notes.py), then attaches FocusDeck.html with that changelog entry as the notes.
 # README → Get started links to the latest release's FocusDeck.html.
