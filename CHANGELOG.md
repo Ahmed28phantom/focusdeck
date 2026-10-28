@@ -4,7 +4,8 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 | Version | Date | Summary |
 |---|---|---|
-| 5.9 | 2026-10-27 | **Current.** Tasks left from earlier days, daily backup to a folder, finish time at your usual pace; GitHub Releases (same data) |
+| 5.10 | 2026-10-28 | **Current.** The chime no longer rings at random times; Space opens Later and Done (same data) |
+| 5.9 | 2026-10-27 | Tasks left from earlier days, daily backup to a folder, finish time at your usual pace; GitHub Releases (same data) |
 | 5.8 | 2026-10-27 | The capacity line counts tasks that ran past their estimate (same data) |
 | 5.7 | 2026-10-27 | Today's Done list shows only tasks finished today (same data) |
 | 5.6 | 2026-10-25 | Fixes for the chime, two tabs, missed sessions and old-data imports (same data) |
@@ -19,7 +20,7 @@ What changed in each release. The app is always the one file `FocusDeck.html`; e
 
 Up to v5.4 each release was saved as its own file (`FocusDeck-v5.3.html` and so on); the release notes below still use those names. v3 and v4 aren't published because they contained personal tasks and history.
 
-You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.9 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
+You can check which version you have open in **Settings**: the bottom line reads “FocusDeck v5.10 · data format 5”. In the code, it's the `APP_VERSION` constant and the comment on line 2.
 
 ## Where your data lives
 
@@ -37,6 +38,22 @@ Each version keeps its data in the browser, not in the file, under its own stora
 - **Clearing the browser's site data erases everything.** Use Settings → Export backup.
 
 ---
+
+## v5.10 — 2026-10-28
+
+**Why:** the chime sometimes rang at random times: mid-session, while paused, or on switching back to the browser. Same data format.
+
+**Fixes**
+- **The chime keeps time after the Mac sleeps.** The alarm is scheduled on the audio clock, which stops while the computer sleeps (or the browser suspends audio). It fell behind by that long, so the session ended silently and the chime rang minutes later, in the middle of the next session or a pause. While a session runs, the new `Sound.resync()` (*Sound*) moves the chime back to the real end time whenever it has drifted by more than a second. At the end, `Sound.release()` cancels a chime that's still waiting and plays one right away instead.
+- **Pausing cancels a chime that's waiting for audio.** When the browser had suspended audio, the chime was scheduled once audio resumed. Pausing didn't cancel that, so it rang, often at once, the next time audio came back, which was usually your next click. `Sound.schedule()` now checks that nothing has been cancelled or rescheduled since it was asked.
+- **No late chime after a reload.** Browsers hold back sound until you click a freshly loaded page. A session that ended before you clicked rang at your next click, maybe minutes later. `Sound.playNow()` now plays only if audio is allowed within 3 seconds; the tab title and the notification still say the session ended.
+- **Space on the Later or Done heading opens it.** It started or paused the timer instead (the key handler, *Events*).
+
+**Code changes in the script:** new `Sound.resync()`, and `Sound.at` and `Sound.gen`. Changed: `Sound.schedule()`, `Sound.cancel()`, `Sound.release()`, `Sound.playNow()`, `tick()` and the key handler. `APP_VERSION` is 5.10. **The CSP hash changed** (`fM4m6Jop/n6A0t7GPhQ5dCwRwf6me6b/J3PouoMz0Zw=`).
+
+**Tests:** four new checks in `tools/check.mjs` cover an audio clock that stalls for ten minutes mid-session, audio resuming after a pause, audio held until a click after the session ended, and Space on the Later heading. The stand-in audio clock in the chime checks now runs in real time, as a real one does. v5.9 fails all four, and v5.10 passes all 59 checks. The checks can't put a real Mac to sleep, so they stand in for it.
+
+**No change** to the data format or the storage key.
 
 ## v5.9 — 2026-10-27
 

@@ -1,6 +1,6 @@
 # FocusDeck User Guide
 
-For FocusDeck v5.9 · October 2026
+For FocusDeck v5.10 · October 2026
 
 ## Getting started
 
@@ -55,7 +55,7 @@ Use Finish Early when you did real work but stopped, and Discard for a false sta
 ### Sound and notifications
 
 - A chime plays when any session ends. Choose Chime, Soft or Off in Settings → Alerts, and press **Play** to test it.
-- Browsers block sound until you click the page once. After a reload, click anywhere once so the alarm can ring.
+- Browsers block sound until you click the page once. After a reload, click anywhere once so the alarm can ring. If a session ends before you click, it stays quiet rather than chiming late at your next click; the tab title and the notification still tell you.
 - Turn on *Notify when the tab is in the background* to also get a desktop notification. The browser asks for permission the first time; notifications only appear when FocusDeck isn't the tab you are looking at.
 
 ## Planning your day

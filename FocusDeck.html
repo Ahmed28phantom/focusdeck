@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- FocusDeck v5.9 · 2026-10-27 · storage key: focusdeck5 · see CHANGELOG.md
+<!-- FocusDeck v5.10 · 2026-10-28 · storage key: focusdeck5 · see CHANGELOG.md
      Security: the CSP below only lets the one script block in this file run, identified by its hash.
      After editing the script, run `python3 tools/csp_hash.py <this file>` or the app will not start. -->
 <html lang="en" data-mode="idle">
@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tZVP4OGoFnelB5XTj7Tg30UweUEa1z9tyEykaQKSsAQ='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fM4m6Jop/n6A0t7GPhQ5dCwRwf6me6b/J3PouoMz0Zw='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -923,7 +923,7 @@ const Core = {
 /* ============================================================
    3. State & storage
    ============================================================ */
-const APP_VERSION = '5.9';   // bump on every release; see CHANGELOG.md
+const APP_VERSION = '5.10';   // bump on every release; see CHANGELOG.md
 const KEY = 'focusdeck5';
 const DEFAULT_SETTINGS = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, dailyTarget: 8, dayStartHour: 4,
   sound: 'chime', autoBreak: false, autoFocus: false, notify: false };   // v5.2: no app theme — follows the system
