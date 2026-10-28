@@ -198,8 +198,8 @@ async function endingSessions() {
   await scenario('The end-of-session chime', async ctx => {
     const p = await open(ctx);
     const run = autoFocus => p.evaluate(async autoFocus => {
-      const counts = { rings: 0, cut: 0 }, param = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
-      Sound.ctx = { state: 'running', currentTime: 0, destination: {}, resume: () => Promise.resolve(),
+      const counts = { rings: 0, cut: 0 }, param = { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, t0 = performance.now();
+      Sound.ctx = { state: 'running', get currentTime() { return (performance.now() - t0) / 1000; }, destination: {}, resume: () => Promise.resolve(),
         createOscillator: () => ({ frequency: {}, connect() {}, disconnect() {}, start() {}, stop(when) { if (when === 0) counts.cut++; } }),
         createGain: () => ({ gain: param, connect() {}, disconnect() {} }) };
       const pattern = Sound.pattern;
@@ -216,6 +216,63 @@ async function endingSessions() {
     await p.evaluate(() => { disarm(); S.timer = idleTimer('focus', S.settings); });
     r = await run(true);   // one chime for the break that ended, one scheduled for the focus session that started by itself
     report(r.rings === 2 && r.cut === 0 && r.next === 'focus' && r.status === 'running', 'Starting the next session by itself doesn’t cut the chime off', JSON.stringify(r));
+  });
+
+  // v5.10: the audio clock stops while the Mac sleeps, and a suspended context can resume long after a pause.
+  // Either way a chime rang minutes later, in the middle of the next session or a pause.
+  await scenario('A chime never rings at the wrong time', async ctx => {
+    const p = await open(ctx);
+    const r = await p.evaluate(async () => {
+      const param = { setValueAtTime() {}, exponentialRampToValueAtTime() {} };
+      let lag = 0, state = 'running', wake = null;
+      const t0 = performance.now(), patterns = [];
+      Sound.ctx = { get state() { return state; }, get currentTime() { return (performance.now() - t0) / 1000 - lag; }, destination: {},
+        resume: () => state === 'running' ? Promise.resolve() : new Promise(res => { wake = res; }),
+        createOscillator: () => { const o = { frequency: {}, connect() {}, disconnect() {}, start() {}, stop(when) { if (when === 0) o.cut = true; } }; return o; },
+        createGain: () => ({ gain: param, connect() {}, disconnect() {} }) };
+      const pattern = Sound.pattern;
+      Sound.pattern = function (at) { const out = pattern.call(this, at); patterns.push({ at, osc: out[0] }); return out; };
+      S.settings.sound = 'chime'; S.settings.autoBreak = false;
+      const pending = () => patterns.filter(x => !x.osc.cut && x.at > Sound.ctx.currentTime + 1).length;
+
+      // The clock stalls for ten minutes partway through a 2-second session
+      S.timer = idleTimer('focus', S.settings); S.timer.plannedSec = 2;
+      startTimer();
+      await new Promise(res => setTimeout(res, 400));
+      lag = 600;
+      await new Promise(res => setTimeout(res, 2400));
+      const stalled = { left: pending(), rang: patterns.filter(x => !x.osc.cut).length, status: S.timer.status };
+
+      // The context is suspended when the session starts, and only resumes after it's paused and its end time has passed
+      patterns.length = 0; state = 'suspended';
+      S.timer = idleTimer('focus', S.settings); S.timer.plannedSec = 1;
+      startTimer(); pauseTimer();
+      await new Promise(res => setTimeout(res, 1200));
+      state = 'running'; wake && wake();
+      await new Promise(res => setTimeout(res, 50));
+      const paused = { rang: patterns.length, status: S.timer.status };
+
+      // The page was reloaded and never clicked, so the browser holds the audio until the next click, minutes later
+      patterns.length = 0; state = 'suspended'; wake = null;
+      pauseTimer(); S.timer = idleTimer('short', S.settings); S.timer.plannedSec = 1;
+      startTimer();
+      await new Promise(res => setTimeout(res, 4500));
+      const ended = S.timer.status;
+      state = 'running'; wake && wake();
+      await new Promise(res => setTimeout(res, 50));
+      const later = { rang: patterns.length, ended };
+      Sound.pattern = pattern; disarm(); S.timer = idleTimer('focus', S.settings);
+      return { stalled, paused, later };
+    });
+    report(r.stalled.left === 0 && r.stalled.rang === 1 && r.stalled.status === 'idle', 'After the audio clock stalls, the chime rings once at the end and nothing is left to ring later', JSON.stringify(r.stalled));
+    report(r.paused.rang === 0 && r.paused.status === 'paused', 'A paused session doesn’t ring when the audio resumes', JSON.stringify(r.paused));
+    report(r.later.rang === 0 && r.later.ended === 'idle', 'A session that ended while audio was held doesn’t ring at the next click', JSON.stringify(r.later));
+
+    // v5.10: Space on the Later or Done heading opens it, instead of starting the timer
+    await p.evaluate(() => { S.tasks.push({ id: 'sp', title: 'Later task', status: 'open', today: false, order: 0, createdAt: Date.now() }); renderAll(); document.querySelector('#laterBox summary').focus(); });
+    await p.keyboard.press('Space');
+    const sp = await p.evaluate(() => ({ open: document.querySelector('#laterBox').open, status: S.timer.status }));
+    report(sp.open && sp.status === 'idle', 'Space on the Later heading opens it and leaves the timer alone', JSON.stringify(sp));
   });
 }
 

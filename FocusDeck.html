@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vaSiLlL0atsh8hp2L1A6wJ5eSyeJ2F+UcmyNDUxpIKA='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tZVP4OGoFnelB5XTj7Tg30UweUEa1z9tyEykaQKSsAQ='; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>FocusDeck</title>
 <link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b52d6'/%3E%3Ccircle cx='32' cy='34' r='19' fill='%23fff'/%3E%3Crect x='27' y='8' width='10' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E">
@@ -1074,7 +1074,7 @@ function redo() {
    starts, so it rings on time even if the browser throttles a background tab.
    ============================================================ */
 const Sound = {
-  ctx: null, nodes: [], scheduledOk: false,
+  ctx: null, nodes: [], at: 0, gen: 0, scheduledOk: false,
   unlock() {
     try {
       if (!this.ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; this.ctx = new C(); }
@@ -1100,31 +1100,44 @@ const Sound = {
     this.cancel();
     this.scheduledOk = S.settings.sound === 'off';
     if (this.scheduledOk || !this.ctx) return;
-    const target = Date.now() + delaySec * 1000;
+    const target = Date.now() + delaySec * 1000, gen = this.gen;
     const go = () => {
-      if (this.ctx.state !== 'running') return;
-      this.cancel();
-      this.nodes = this.pattern(this.ctx.currentTime + Math.max(0, (target - Date.now()) / 1000));
+      // v5.10: a resume can resolve long after a pause or a reschedule; that stale target would ring at once
+      if (gen !== this.gen || this.ctx.state !== 'running') return;
+      this.at = this.ctx.currentTime + Math.max(0, (target - Date.now()) / 1000);
+      this.nodes = this.pattern(this.at);
       this.scheduledOk = true;
     };
     this.ctx.state === 'running' ? go() : this.ctx.resume().then(go).catch(() => {});
   },
   cancel() {
+    this.gen++;
     for (const n of this.nodes) { try { n.stop && n.stop(0); } catch (e) {} try { n.disconnect(); } catch (e) {} }
     this.nodes = []; this.scheduledOk = false;
   },
+  /** v5.10: the audio clock stops while the Mac sleeps or the browser suspends audio, so a chime scheduled on it
+      falls behind the wall clock. Move it back to the real end time when it has drifted. */
+  resync(remSec) {
+    if (!this.scheduledOk || !this.nodes.length || this.ctx.state !== 'running') return;
+    if (Math.abs(this.at - this.ctx.currentTime - remSec) > 1) this.schedule(remSec);
+  },
   /** v5.6: when a session ends, let the scheduled chime ring out instead of cancelling it. Forgets its nodes, so the
-      next schedule can't cut it off, and says whether it rang (or the sound is off), so finish() doesn't ring again. */
+      next schedule can't cut it off, and says whether it rang (or the sound is off), so finish() doesn't ring again.
+      v5.10: a chime still waiting on a drifted audio clock is cancelled instead — left alone, it would ring minutes
+      later, in the middle of the next session or a pause. */
   release() {
-    const rang = this.scheduledOk && (!this.ctx || this.ctx.state === 'running');
-    this.nodes = []; this.scheduledOk = false;
-    return rang;
+    if (S.settings.sound === 'off') { this.cancel(); return true; }
+    const due = this.scheduledOk && this.ctx && this.ctx.state === 'running' && this.ctx.currentTime > this.at - 1;
+    if (!due) { this.cancel(); return false; }
+    this.gen++; this.nodes = []; this.scheduledOk = false;
+    return true;
   },
   playNow() {
     if (S.settings.sound === 'off') return;
     this.unlock();
     if (!this.ctx) return;
-    const go = () => this.pattern(this.ctx.currentTime + 0.05);
+    // v5.10: audio the browser hasn't allowed yet only resumes on the next click, maybe minutes later, mid-session
+    const asked = Date.now(), go = () => { if (Date.now() - asked < 3000) this.pattern(this.ctx.currentTime + 0.05); };
     this.ctx.state === 'running' ? go() : this.ctx.resume().then(go).catch(() => {});
   },
 };
@@ -1151,7 +1164,9 @@ function armTimers() {
 function disarm() { clearInterval(tickIV); clearTimeout(endTO); tickIV = endTO = null; Sound.cancel(); }
 function tick() {
   if (S.timer.status !== 'running') return;
-  if (remaining() <= 0) finish('completed'); else renderClock();
+  if (remaining() <= 0) { finish('completed'); return; }
+  Sound.resync(remaining());
+  renderClock();
 }
 function startTimer(atMs) {
   const t = S.timer;
@@ -2150,7 +2165,7 @@ function bindEvents() {
     if (document.querySelector('dialog[open]')) return;
     if (e.key === '?') { $('#keysDialog').showModal(); return; }
     if (currentView !== 'today') return;
-    if (e.key === ' ' && tag === 'BUTTON') return;        // let the focused button handle its own Space
+    if (e.key === ' ' && (tag === 'BUTTON' || tag === 'SUMMARY')) return;   // let the focused button (or Later/Done heading) handle its own Space
     switch (e.key) {
       case ' ': e.preventDefault(); toggleTimer(); break;
       case 'n': case 'N': e.preventDefault(); $('#quickToday').focus(); break;
