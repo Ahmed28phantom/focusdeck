@@ -88,6 +88,8 @@ The interface follows Apple's Human Interface Guidelines, reviewed with the open
 
 FocusDeck is not affiliated with or endorsed by Apple.
 
+Built with [Claude Code](https://claude.com/claude-code).
+
 ## License
 
 [MIT](LICENSE)
